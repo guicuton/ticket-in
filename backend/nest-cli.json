@@ -4,16 +4,35 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "webpack": true
+    "webpack": true,
+    "webpackConfigPath": "webpack.config.js"
   },
   "projects": {
-    "authentication": {
+    "account": {
       "type": "library",
-      "root": "libs/authentication",
+      "root": "libs/account",
       "entryFile": "index",
-      "sourceRoot": "libs/authentication/src",
+      "sourceRoot": "libs/account/src",
       "compilerOptions": {
-        "tsConfigPath": "libs/authentication/tsconfig.lib.json"
+        "tsConfigPath": "libs/account/tsconfig.lib.json"
+      }
+    },
+    "auth": {
+      "type": "library",
+      "root": "libs/auth",
+      "entryFile": "index",
+      "sourceRoot": "libs/auth/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/auth/tsconfig.lib.json"
+      }
+    },
+    "cache": {
+      "type": "library",
+      "root": "libs/cache",
+      "entryFile": "index",
+      "sourceRoot": "libs/cache/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/cache/tsconfig.lib.json"
       }
     },
     "database": {

@@ -1,0 +1,144 @@
+name: ticketin
+
+networks:
+  ticketin:
+    name: ticketin
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ticketin_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ticketin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    container_name: ticketin_redis
+    image: redis:7.0.8-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: |
+      redis-server 
+      --port ${REDIS_PORT} 
+      --requirepass ${REDIS_PASS}
+      --bind 0.0.0.0
+      --timeout 0
+      --tcp-keepalive 300
+      --maxmemory 3gb
+      --maxmemory-policy allkeys-lru
+      --maxmemory-samples 5
+      --save 300 100
+      --save 900 50
+      --stop-writes-on-bgsave-error yes
+      --rdbcompression yes
+      --rdbchecksum yes
+      --dbfilename dump.rdb
+      --dir /data
+      --appendonly yes
+      --appendfsync everysec
+      --no-appendfsync-on-rewrite no
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+      --tcp-backlog 65535
+      --databases 16
+      --hash-max-ziplist-entries 512
+      --hash-max-ziplist-value 64
+      --list-max-ziplist-size -2
+      --list-compress-depth 0
+      --set-max-intset-entries 512
+      --zset-max-ziplist-entries 128
+      --zset-max-ziplist-value 64
+      --io-threads 2
+      --io-threads-do-reads yes
+      --maxclients 5000
+      --slowlog-log-slower-than 5000
+      --slowlog-max-len 128
+      --latency-monitor-threshold 100
+      --rdb-save-incremental-fsync yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASS}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    ports:
+      - "6379:6379"
+    networks:
+      - ticketin
+    sysctls:
+      - net.core.somaxconn=65535
+
+  # migration:
+  #   container_name: ticketin_migration
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: prod
+  #   env_file:
+  #     - configurations/envs/.env.prod
+  #   command: ["npm", "run", "migration:deploy:prod"]
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     NODE_ENV: prod
+  #   networks:
+  #     - ticketin
+  
+  # seed:
+  #   container_name: ticketin_seed
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: prod
+  #   env_file:
+  #     - configurations/envs/.env.prod
+  #   command: ["npm", "run", "migration:seed:prod"]
+  #   depends_on:
+  #     migration:
+  #       condition: service_completed_successfully
+  #   environment:
+  #     NODE_ENV: prod
+  #   networks:
+  #     - ticketin
+
+  # backend:
+  #   container_name: ticketin_backend
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: prod
+  #   env_file:
+  #     - configurations/envs/.env.prod
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     migration:
+  #       condition: service_completed_successfully
+  #     redis:
+  #       condition: service_started
+  #       restart: true
+  #   environment:
+  #     NODE_ENV: prod
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - ticketin

@@ -4,10 +4,110 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "./generated"
+  moduleFormat = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model logins {
+  id         String     @id @default(uuid(7))
+  username   String     @unique @db.VarChar(40)
+  password   String     @db.VarChar(60)
+  email      String     @unique @db.VarChar(254)
+  role       LOGIN_ROLE @default(USER)
+  is_deleted Boolean    @default(false)
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+
+  assigned_areas    logins_assigned_areas[]
+  tickets_requester tickets[]               @relation("requester")
+  tickets_responser tickets[]               @relation("responser")
+  tickets_messages  ticket_messages[]
+
+  @@index([username])
+  @@index([email])
+}
+
+model logins_assigned_areas {
+  area_id  String
+  login_id String
+
+  logins logins @relation(fields: [login_id], references: [id])
+  areas  areas  @relation(fields: [area_id], references: [id], onDelete: Cascade)
+
+  @@id([login_id, area_id])
+  @@index([area_id])
+}
+
+model areas {
+  id          String   @id @default(uuid(7))
+  alias       String   @db.VarChar(100)
+  description String   @db.VarChar(200)
+  created_at  DateTime @default(now())
+
+  logins  logins_assigned_areas[]
+  tickets tickets[]
+}
+
+model tickets {
+  id                 String          @id @default(uuid(7))
+  area_id            String?
+  requester_login_id String
+  responser_login_id String?
+  subject            String          @db.VarChar(200)
+  description        String          @db.Text
+  priority           TICKET_PRIORITY @default(NORMAL)
+  state              TICKET_STATE    @default(NEW)
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  messages ticket_messages[]
+
+  area            areas?  @relation(fields: [area_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  login_responser logins? @relation("responser", fields: [responser_login_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  login_requester logins  @relation("requester", fields: [requester_login_id], references: [id])
+
+  @@index([area_id, state])
+  @@index([area_id, priority])
+  @@index([responser_login_id, state])
+  @@index([responser_login_id, priority])
+  @@index([requester_login_id])
+}
+
+model ticket_messages {
+  id         String   @id @default(uuid(7))
+  ticket_id  String
+  login_id   String
+  message    String   @db.Text
+  created_at DateTime @default(now())
+
+  ticket tickets @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  login  logins  @relation(fields: [login_id], references: [id])
+
+  @@index([ticket_id, created_at])
+}
+
+enum TICKET_PRIORITY {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TICKET_STATE {
+  NEW
+  IN_PROGRESS
+  ESCALATED
+  WAITING_FEEDBACK
+  RESOLVED
+}
+
+enum LOGIN_ROLE {
+  USER
+  MASTER
+  ADMIN
 }

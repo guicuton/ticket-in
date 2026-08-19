@@ -21,9 +21,17 @@
 	"scripts": {
 		"start:dev": "concurrently -c blue,green \"npm run start:dev:*\"",
 		"start:dev:backend": "npm run start:dev --workspace=backend",
-		"start:dev:frontend": "npm run start --workspace=frontend"
+		"start:dev:frontend": "npm run start --workspace=frontend",
+		"migration:seed": "prisma db seed --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts",
+		"migration:create": "prisma migrate dev --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts"
 	},
 	"devDependencies": {
-		"concurrently": "^10.0.5"
+		"@types/bcrypt": "^6.0.0",
+		"concurrently": "^10.0.5",
+		"dotenv-cli": "^11.0.0",
+		"npm-run-all2": "^9.0.3"
+	},
+	"dependencies": {
+		"bcrypt": "^6.0.0"
 	}
 }
