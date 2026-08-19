@@ -3,8 +3,8 @@ import { IAuthenticatedAccount } from '@app/auth';
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
-  IAuthLoginCreateParams,
-  IAuthLoginCreatePromise,
+  IAccountCreateParams,
+  IAccountCreatePromise,
   IAuthLoginPasswordUpdateParams,
   IAuthLoginPromise,
 } from './account.interface';
@@ -38,8 +38,8 @@ export class AccountControllerService {
   }
 
   async createOne(
-    params: IAuthLoginCreateParams,
-  ): Promise<IAuthLoginCreatePromise> {
+    params: IAccountCreateParams,
+  ): Promise<IAccountCreatePromise> {
     const { body, ip, account } = params;
 
     const serviceResult = await this.accountService.createOne(body);

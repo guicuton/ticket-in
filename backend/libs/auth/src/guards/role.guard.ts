@@ -1,6 +1,11 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IJwtGuardPayload } from '../strategies/strategies.interface';
+import { IAuthenticatedAccount } from '../strategies/strategies.interface';
 
 @Injectable()
 export class RoleGuard implements CanActivate {
@@ -14,10 +19,13 @@ export class RoleGuard implements CanActivate {
 
     if (!roles || roles.length === 0) return true;
 
-    const { user }: { user: IJwtGuardPayload } = context
+    const { user }: { user?: IAuthenticatedAccount } = context
       .switchToHttp()
       .getRequest();
 
-    return roles.includes(user.settings.role);
+    if (!user?.role || !roles.includes(user.role))
+      throw new ForbiddenException('insufficient_role');
+
+    return true;
   }
 }

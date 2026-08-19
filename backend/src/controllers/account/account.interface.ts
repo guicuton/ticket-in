@@ -1,5 +1,5 @@
 import { IAuthenticatedAccount } from '@app/auth';
-import { IAuthCreateDTO, IAuthPutPasswordDTO } from './account.dto';
+import { IAccountCreateDTO, IAuthPutPasswordDTO } from './account.dto';
 
 export interface IAuthLoginParams {
   account: IAuthenticatedAccount;
@@ -16,12 +16,12 @@ export interface IAuthLoginPasswordUpdateParams {
   body: IAuthPutPasswordDTO;
 }
 
-export interface IAuthLoginCreateParams {
+export interface IAccountCreateParams {
   account: IAuthenticatedAccount;
   ip: string;
-  body: IAuthCreateDTO;
+  body: IAccountCreateDTO;
 }
 
-export interface IAuthLoginCreatePromise {
+export interface IAccountCreatePromise {
   id: string;
 }

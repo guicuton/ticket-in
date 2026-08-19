@@ -1,5 +1,5 @@
 import type { IAuthenticatedAccount } from '@app/auth';
-import { JwtAuthGuard, LocalAuthGuard } from '@app/auth';
+import { JwtAuthGuard, LocalAuthGuard, RoleGuard } from '@app/auth';
 import { Body, Controller, Ip, Post, Put, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -10,20 +10,18 @@ import {
 } from '@nestjs/swagger';
 import { Account } from '../../../decorators/account.decorator';
 import {
-  IAuthCreateDTO,
-  IAuthLoginCreateResponseDTO,
+  IAccountCreateDTO,
   IAuthLoginDTO,
   IAuthLoginResponseDTO,
   IAuthPutPasswordDTO,
 } from './account.dto';
-import {
-  IAuthLoginCreatePromise,
-  IAuthLoginPromise,
-} from './account.interface';
+import { IAccountCreatePromise, IAuthLoginPromise } from './account.interface';
 import { AccountControllerService } from './account.service';
+import { Roles } from '../../../decorators/roles.decorator';
+import { LOGIN_ROLES } from '@app/database';
 
-@ApiTags('Account')
-@Controller('account')
+@ApiTags('Accounts')
+@Controller('accounts')
 export class AccountController {
   constructor(private readonly controllerService: AccountControllerService) {}
 
@@ -40,7 +38,7 @@ export class AccountController {
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   @UseGuards(LocalAuthGuard)
-  @Post('login')
+  @Post('authentication')
   async login(
     @Account() account: IAuthenticatedAccount,
     @Ip() ip: string,
@@ -53,11 +51,10 @@ export class AccountController {
     description: 'Registered users can add new account',
   })
   @ApiBearerAuth('bearer')
-  @ApiBody({ type: IAuthCreateDTO })
+  @ApiBody({ type: IAccountCreateDTO })
   @ApiResponse({
     status: 201,
-    description: 'Account created successfully.',
-    type: IAuthLoginCreateResponseDTO,
+    description: 'Account created successfully',
   })
   @ApiResponse({
     status: 400,
@@ -67,13 +64,14 @@ export class AccountController {
     status: 401,
     description: 'Missing/invalid token or wrong current password.',
   })
-  @UseGuards(JwtAuthGuard)
+  @Roles(LOGIN_ROLES.ADMIN)
+  @UseGuards(JwtAuthGuard, RoleGuard)
   @Post('create')
   async register(
     @Account() account: IAuthenticatedAccount,
     @Ip() ip: string,
-    @Body() body: IAuthCreateDTO,
-  ): Promise<IAuthLoginCreatePromise> {
+    @Body() body: IAccountCreateDTO,
+  ): Promise<IAccountCreatePromise> {
     return await this.controllerService.createOne({
       body,
       ip,

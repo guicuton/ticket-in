@@ -7,10 +7,7 @@ import {
   Matches,
   MinLength,
 } from 'class-validator';
-import {
-  IAuthLoginCreatePromise,
-  IAuthLoginPromise,
-} from './account.interface';
+import { IAccountCreatePromise, IAuthLoginPromise } from './account.interface';
 import { LOGIN_ROLES } from '../../../libs/database/src';
 
 export class IAuthLoginDTO {
@@ -71,7 +68,7 @@ export class IAuthLoginResponseDTO implements IAuthLoginPromise {
   access_token: string;
 }
 
-export class IAuthCreateDTO {
+export class IAccountCreateDTO {
   @ApiProperty({
     description: 'Username',
     example: 'johndoe',
@@ -114,7 +111,7 @@ export class IAuthCreateDTO {
   role: keyof typeof LOGIN_ROLES;
 }
 
-export class IAuthLoginCreateResponseDTO implements IAuthLoginCreatePromise {
+export class IAccountCreateResponseDTO implements IAccountCreatePromise {
   @ApiProperty({ format: 'uuid' })
   id: string;
 }

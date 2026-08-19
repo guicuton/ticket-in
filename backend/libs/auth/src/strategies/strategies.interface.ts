@@ -10,12 +10,7 @@ export interface IJwtGuard {
   access_token: string;
 }
 
-export interface IJwtGuardPayload {
-  username: string;
-  id: string;
-  settings: {
-    role: string;
-  };
+export interface IJwtGuardPayload extends Omit<IAuthenticatedAccount, 'id'> {
   sub: string;
   iat?: number;
   exp?: number;
