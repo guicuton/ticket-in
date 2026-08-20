@@ -151,9 +151,39 @@ export class AccountController {
   }
 
   @ApiOperation({
-    summary: 'Get tickets related to an account',
+    summary: 'Get tickets related to the authenticated account',
     description:
-      'Return a paginated list of tickets where the account is the requester or the responser. Restricted to the account owner or an ADMIN/MASTER.',
+      'Return a paginated list of tickets where the authenticated account is the requester or the responser.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiExtraModels(IAccountTicketsListQueryDTO)
+  @ApiResponse({
+    status: 200,
+    description: 'Tickets list.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed for the request query.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing/invalid token.',
+  })
+  @Get('tickets')
+  async tickets(
+    @Account() account: IAuthenticatedAccount,
+    @Query() query: IAccountTicketsListQueryDTO,
+  ): Promise<IAccountTicketListWithPaginationPromise> {
+    return await this.controllerService.findTicketsWithPagination({
+      login_id: account.id,
+      query,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Get tickets related to any account',
+    description:
+      'Return a paginated list of tickets where the given account is the requester or the responser.',
   })
   @ApiBearerAuth('bearer')
   @ApiExtraModels(IAccountTicketsListQueryDTO)
@@ -171,25 +201,54 @@ export class AccountController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Account is neither the owner nor an ADMIN/MASTER.',
+    description: 'Account is not an ADMIN/MASTER.',
   })
+  @Roles(LOGIN_ROLES.ADMIN, LOGIN_ROLES.MASTER)
   @Get('tickets/:id')
-  async tickets(
-    @Account() account: IAuthenticatedAccount,
+  async ticketsById(
     @Param() params: IAccountIdParamDTO,
     @Query() query: IAccountTicketsListQueryDTO,
   ): Promise<IAccountTicketListWithPaginationPromise> {
     return await this.controllerService.findTicketsWithPagination({
-      account,
       login_id: params.id,
       query,
     });
   }
 
   @ApiOperation({
-    summary: 'Get messages related to an account',
+    summary: 'Get messages sent by the authenticated account',
     description:
-      'Return a paginated list of ticket messages sent by the account. Restricted to the account owner or an ADMIN/MASTER.',
+      'Return a paginated list of ticket messages sent by the authenticated account.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiExtraModels(IAccountMessagesListQueryDTO)
+  @ApiResponse({
+    status: 200,
+    description: 'Messages list.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed for the request query.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing/invalid token.',
+  })
+  @Get('messages')
+  async messages(
+    @Account() account: IAuthenticatedAccount,
+    @Query() query: IAccountMessagesListQueryDTO,
+  ): Promise<IAccountMessageListWithPaginationPromise> {
+    return await this.controllerService.findMessagesWithPagination({
+      login_id: account.id,
+      query,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Get messages sent by any account',
+    description:
+      'Return a paginated list of ticket messages sent by the given account.',
   })
   @ApiBearerAuth('bearer')
   @ApiExtraModels(IAccountMessagesListQueryDTO)
@@ -207,25 +266,46 @@ export class AccountController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Account is neither the owner nor an ADMIN/MASTER.',
+    description: 'Account is not an ADMIN/MASTER.',
   })
+  @Roles(LOGIN_ROLES.ADMIN, LOGIN_ROLES.MASTER)
   @Get('messages/:id')
-  async messages(
-    @Account() account: IAuthenticatedAccount,
+  async messagesById(
     @Param() params: IAccountIdParamDTO,
     @Query() query: IAccountMessagesListQueryDTO,
   ): Promise<IAccountMessageListWithPaginationPromise> {
     return await this.controllerService.findMessagesWithPagination({
-      account,
       login_id: params.id,
       query,
     });
   }
 
   @ApiOperation({
-    summary: 'Get areas assigned to an account',
+    summary: 'Get areas assigned to the authenticated account',
     description:
-      'Return the list of areas assigned to the account. Restricted to the account owner or an ADMIN/MASTER.',
+      'Return the list of areas assigned to the authenticated account.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiResponse({
+    status: 200,
+    description: 'Assigned areas list.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing/invalid token.',
+  })
+  @Get('areas')
+  async areas(
+    @Account() account: IAuthenticatedAccount,
+  ): Promise<IAccountAreaItemListPromise[]> {
+    return await this.controllerService.findAssignedAreas({
+      login_id: account.id,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Get areas assigned to any account',
+    description: 'Return the list of areas assigned to the given account.',
   })
   @ApiBearerAuth('bearer')
   @ApiResponse({
@@ -242,15 +322,14 @@ export class AccountController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Account is neither the owner nor an ADMIN/MASTER.',
+    description: 'Account is not an ADMIN/MASTER.',
   })
+  @Roles(LOGIN_ROLES.ADMIN, LOGIN_ROLES.MASTER)
   @Get('areas/:id')
-  async areas(
-    @Account() account: IAuthenticatedAccount,
+  async areasById(
     @Param() params: IAccountIdParamDTO,
   ): Promise<IAccountAreaItemListPromise[]> {
     return await this.controllerService.findAssignedAreas({
-      account,
       login_id: params.id,
     });
   }

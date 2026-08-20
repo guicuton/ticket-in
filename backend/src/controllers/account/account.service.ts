@@ -7,8 +7,7 @@ import {
   IAccountTicketListWithPaginationPromise,
 } from '@app/account';
 import { IAuthenticatedAccount } from '@app/auth';
-import { LOGIN_ROLES } from '@app/database';
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   IAccountAreasListParams,
@@ -84,11 +83,9 @@ export class AccountControllerService {
   }
 
   async findTicketsWithPagination(
-    params: IAccountTicketsListParams,
+    data: IAccountTicketsListParams,
   ): Promise<IAccountTicketListWithPaginationPromise> {
-    const { account, login_id, query } = params;
-    this.ensureAccountScope(account, login_id);
-
+    const { login_id, query } = data;
     return await this.accountService.findTicketsWithPagination({
       login_id,
       ...query,
@@ -98,9 +95,7 @@ export class AccountControllerService {
   async findMessagesWithPagination(
     params: IAccountMessagesListParams,
   ): Promise<IAccountMessageListWithPaginationPromise> {
-    const { account, login_id, query } = params;
-    this.ensureAccountScope(account, login_id);
-
+    const { login_id, query } = params;
     return await this.accountService.findMessagesWithPagination({
       login_id,
       ...query,
@@ -110,22 +105,7 @@ export class AccountControllerService {
   async findAssignedAreas(
     params: IAccountAreasListParams,
   ): Promise<IAccountAreaItemListPromise[]> {
-    const { account, login_id } = params;
-    this.ensureAccountScope(account, login_id);
-
+    const { login_id } = params;
     return await this.accountService.findAssignedAreas(login_id);
-  }
-
-  private ensureAccountScope(
-    account: IAuthenticatedAccount,
-    login_id: string,
-  ): void {
-    const isOwner = account.id === login_id;
-    const isPrivileged =
-      account.role === LOGIN_ROLES.ADMIN || account.role === LOGIN_ROLES.MASTER;
-
-    if (!isOwner && !isPrivileged) {
-      throw new ForbiddenException('insufficient_scope');
-    }
   }
 }

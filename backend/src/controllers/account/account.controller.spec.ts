@@ -4,7 +4,8 @@ import type {
   IAccountTicketListWithPaginationPromise,
 } from '@app/account';
 import type { IAuthenticatedAccount } from '@app/auth';
-import { ForbiddenException } from '@nestjs/common';
+import { LOGIN_ROLES } from '@app/database';
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AccountController } from './account.controller';
 import {
@@ -154,6 +155,52 @@ describe('AccountController', () => {
   });
 
   describe('tickets', () => {
+    const query: IAccountTicketsListQueryDTO = {
+      relation: 'requester',
+      per_page: 10,
+      offset: 0,
+      sort: 'created_at',
+    };
+
+    it('should return the authenticated account tickets by controllerService.findTicketsWithPagination', async () => {
+      const expected = {
+        data: [],
+        meta: {},
+      } as unknown as IAccountTicketListWithPaginationPromise;
+      controllerService.findTicketsWithPagination.mockResolvedValue(expected);
+
+      const result = await controller.tickets(user, query);
+
+      expect(controllerService.findTicketsWithPagination).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(controllerService.findTicketsWithPagination).toHaveBeenCalledWith({
+        login_id: user.id,
+        query,
+      });
+      expect(result).toBe(expected);
+    });
+
+    it('should read the authenticated account id and never a value from the request', async () => {
+      controllerService.findTicketsWithPagination.mockResolvedValue(
+        {} as IAccountTicketListWithPaginationPromise,
+      );
+
+      await controller.tickets(user, query);
+
+      const [call] = controllerService.findTicketsWithPagination.mock.calls[0];
+      expect(call.login_id).toBe(user.id);
+    });
+
+    it('should propagate errors thrown by controllerService.findTicketsWithPagination', async () => {
+      const error = new Error('tickets failed');
+      controllerService.findTicketsWithPagination.mockRejectedValue(error);
+
+      await expect(controller.tickets(user, query)).rejects.toBe(error);
+    });
+  });
+
+  describe('ticketsById', () => {
     const params: IAccountIdParamDTO = {
       id: '00000000-0000-0000-0000-000000000010',
     };
@@ -164,35 +211,64 @@ describe('AccountController', () => {
       sort: 'created_at',
     };
 
-    it('should return the tickets list by controllerService.findTicketsWithPagination', async () => {
+    it('should return the given account tickets by controllerService.findTicketsWithPagination', async () => {
       const expected = {
         data: [],
         meta: {},
       } as unknown as IAccountTicketListWithPaginationPromise;
       controllerService.findTicketsWithPagination.mockResolvedValue(expected);
 
-      const result = await controller.tickets(user, params, query);
+      const result = await controller.ticketsById(params, query);
 
-      expect(controllerService.findTicketsWithPagination).toHaveBeenCalledTimes(
-        1,
-      );
       expect(controllerService.findTicketsWithPagination).toHaveBeenCalledWith({
-        account: user,
         login_id: params.id,
         query,
       });
       expect(result).toBe(expected);
     });
 
-    it('should propagate a ForbiddenException thrown by controllerService.findTicketsWithPagination', async () => {
-      const error = new ForbiddenException('insufficient_scope');
+    it('should propagate errors thrown by controllerService.findTicketsWithPagination', async () => {
+      const error = new Error('tickets failed');
       controllerService.findTicketsWithPagination.mockRejectedValue(error);
 
-      await expect(controller.tickets(user, params, query)).rejects.toBe(error);
+      await expect(controller.ticketsById(params, query)).rejects.toBe(error);
     });
   });
 
   describe('messages', () => {
+    const query: IAccountMessagesListQueryDTO = {
+      per_page: 10,
+      offset: 0,
+      sort: 'created_at',
+    };
+
+    it('should return the authenticated account messages by controllerService.findMessagesWithPagination', async () => {
+      const expected = {
+        data: [],
+        meta: {},
+      } as unknown as IAccountMessageListWithPaginationPromise;
+      controllerService.findMessagesWithPagination.mockResolvedValue(expected);
+
+      const result = await controller.messages(user, query);
+
+      expect(controllerService.findMessagesWithPagination).toHaveBeenCalledWith(
+        {
+          login_id: user.id,
+          query,
+        },
+      );
+      expect(result).toBe(expected);
+    });
+
+    it('should propagate errors thrown by controllerService.findMessagesWithPagination', async () => {
+      const error = new Error('messages failed');
+      controllerService.findMessagesWithPagination.mockRejectedValue(error);
+
+      await expect(controller.messages(user, query)).rejects.toBe(error);
+    });
+  });
+
+  describe('messagesById', () => {
     const params: IAccountIdParamDTO = {
       id: '00000000-0000-0000-0000-000000000010',
     };
@@ -202,21 +278,17 @@ describe('AccountController', () => {
       sort: 'created_at',
     };
 
-    it('should return the messages list by controllerService.findMessagesWithPagination', async () => {
+    it('should return the given account messages by controllerService.findMessagesWithPagination', async () => {
       const expected = {
         data: [],
         meta: {},
       } as unknown as IAccountMessageListWithPaginationPromise;
       controllerService.findMessagesWithPagination.mockResolvedValue(expected);
 
-      const result = await controller.messages(user, params, query);
+      const result = await controller.messagesById(params, query);
 
-      expect(
-        controllerService.findMessagesWithPagination,
-      ).toHaveBeenCalledTimes(1);
       expect(controllerService.findMessagesWithPagination).toHaveBeenCalledWith(
         {
-          account: user,
           login_id: params.id,
           query,
         },
@@ -224,40 +296,83 @@ describe('AccountController', () => {
       expect(result).toBe(expected);
     });
 
-    it('should propagate a ForbiddenException thrown by controllerService.findMessagesWithPagination', async () => {
-      const error = new ForbiddenException('insufficient_scope');
+    it('should propagate errors thrown by controllerService.findMessagesWithPagination', async () => {
+      const error = new Error('messages failed');
       controllerService.findMessagesWithPagination.mockRejectedValue(error);
 
-      await expect(controller.messages(user, params, query)).rejects.toBe(
-        error,
-      );
+      await expect(controller.messagesById(params, query)).rejects.toBe(error);
     });
   });
 
   describe('areas', () => {
+    it('should return the authenticated account assigned areas by controllerService.findAssignedAreas', async () => {
+      const expected: IAccountAreaItemListPromise[] = [];
+      controllerService.findAssignedAreas.mockResolvedValue(expected);
+
+      const result = await controller.areas(user);
+
+      expect(controllerService.findAssignedAreas).toHaveBeenCalledWith({
+        login_id: user.id,
+      });
+      expect(result).toBe(expected);
+    });
+
+    it('should propagate errors thrown by controllerService.findAssignedAreas', async () => {
+      const error = new Error('areas failed');
+      controllerService.findAssignedAreas.mockRejectedValue(error);
+
+      await expect(controller.areas(user)).rejects.toBe(error);
+    });
+  });
+
+  describe('areasById', () => {
     const params: IAccountIdParamDTO = {
       id: '00000000-0000-0000-0000-000000000010',
     };
 
-    it('should return the assigned areas list by controllerService.findAssignedAreas', async () => {
+    it('should return the given account assigned areas by controllerService.findAssignedAreas', async () => {
       const expected: IAccountAreaItemListPromise[] = [];
       controllerService.findAssignedAreas.mockResolvedValue(expected);
 
-      const result = await controller.areas(user, params);
+      const result = await controller.areasById(params);
 
-      expect(controllerService.findAssignedAreas).toHaveBeenCalledTimes(1);
       expect(controllerService.findAssignedAreas).toHaveBeenCalledWith({
-        account: user,
         login_id: params.id,
       });
       expect(result).toBe(expected);
     });
 
-    it('should propagate a ForbiddenException thrown by controllerService.findAssignedAreas', async () => {
-      const error = new ForbiddenException('insufficient_scope');
+    it('should propagate errors thrown by controllerService.findAssignedAreas', async () => {
+      const error = new Error('areas failed');
       controllerService.findAssignedAreas.mockRejectedValue(error);
 
-      await expect(controller.areas(user, params)).rejects.toBe(error);
+      await expect(controller.areasById(params)).rejects.toBe(error);
     });
+  });
+
+  describe('roles metadata', () => {
+    const reflector = new Reflector();
+
+    it.each([
+      ['ticketsById', AccountController.prototype.ticketsById],
+      ['messagesById', AccountController.prototype.messagesById],
+      ['areasById', AccountController.prototype.areasById],
+    ])('should restrict %s to ADMIN and MASTER', (_name, handler) => {
+      expect(reflector.get<string[]>('roles', handler)).toEqual([
+        LOGIN_ROLES.ADMIN,
+        LOGIN_ROLES.MASTER,
+      ]);
+    });
+
+    it.each([
+      ['tickets', AccountController.prototype.tickets],
+      ['messages', AccountController.prototype.messages],
+      ['areas', AccountController.prototype.areas],
+    ])(
+      'should leave %s reachable by any authenticated account',
+      (_name, handler) => {
+        expect(reflector.get<string[]>('roles', handler)).toBeUndefined();
+      },
+    );
   });
 });

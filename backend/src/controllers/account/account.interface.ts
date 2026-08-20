@@ -46,18 +46,15 @@ export interface IAccountItemListPromise {
 }
 
 export interface IAccountTicketsListParams {
-  account: IAuthenticatedAccount;
   login_id: string;
   query: IAccountTicketsListQueryDTO;
 }
 
 export interface IAccountMessagesListParams {
-  account: IAuthenticatedAccount;
   login_id: string;
   query: IAccountMessagesListQueryDTO;
 }
 
 export interface IAccountAreasListParams {
-  account: IAuthenticatedAccount;
   login_id: string;
 }

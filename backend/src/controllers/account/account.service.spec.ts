@@ -7,7 +7,7 @@ import {
 } from './account.dto';
 import { AuthenticationControllerService } from './account.service';
 import { AccountControllerService } from './account.service';
-import { ForbiddenException, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import {
   AccountService,
   IAccountAreaItemListPromise,
@@ -192,29 +192,7 @@ describe('AccountControllerService (relations endpoints)', () => {
   let controllerService: AccountControllerService;
   let accountService: jest.Mocked<AccountService>;
 
-  const ownerId = '00000000-0000-0000-0000-000000000010';
-  const strangerId = '00000000-0000-0000-0000-000000000020';
-
-  const ownerAccount: IAuthenticatedAccount = {
-    id: ownerId,
-    username: 'owner',
-    role: 'USER',
-  };
-  const adminAccount: IAuthenticatedAccount = {
-    id: '00000000-0000-0000-0000-000000000099',
-    username: 'admin',
-    role: 'ADMIN',
-  };
-  const masterAccount: IAuthenticatedAccount = {
-    id: '00000000-0000-0000-0000-000000000098',
-    username: 'master',
-    role: 'MASTER',
-  };
-  const strangerAccount: IAuthenticatedAccount = {
-    id: strangerId,
-    username: 'stranger',
-    role: 'USER',
-  };
+  const loginId = '00000000-0000-0000-0000-000000000010';
 
   const ticketsQuery: IAccountTicketsListQueryDTO = {
     relation: 'requester',
@@ -276,136 +254,87 @@ describe('AccountControllerService (relations endpoints)', () => {
     accountService = module.get(AccountService);
   });
 
-  describe('access scope', () => {
-    it('allows the owner to read their own tickets', async () => {
-      accountService.findTicketsWithPagination.mockResolvedValue(
-        paginatedTickets,
-      );
-
-      await expect(
-        controllerService.findTicketsWithPagination({
-          account: ownerAccount,
-          login_id: ownerId,
-          query: ticketsQuery,
-        }),
-      ).resolves.toEqual(paginatedTickets);
-    });
-
-    it('allows ADMIN to read another account tickets', async () => {
-      accountService.findTicketsWithPagination.mockResolvedValue(
-        paginatedTickets,
-      );
-
-      await expect(
-        controllerService.findTicketsWithPagination({
-          account: adminAccount,
-          login_id: ownerId,
-          query: ticketsQuery,
-        }),
-      ).resolves.toEqual(paginatedTickets);
-    });
-
-    it('allows MASTER to read another account tickets', async () => {
-      accountService.findTicketsWithPagination.mockResolvedValue(
-        paginatedTickets,
-      );
-
-      await expect(
-        controllerService.findTicketsWithPagination({
-          account: masterAccount,
-          login_id: ownerId,
-          query: ticketsQuery,
-        }),
-      ).resolves.toEqual(paginatedTickets);
-    });
-
-    it('rejects a different USER with ForbiddenException', async () => {
-      await expect(
-        controllerService.findTicketsWithPagination({
-          account: strangerAccount,
-          login_id: ownerId,
-          query: ticketsQuery,
-        }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
-
-      expect(accountService.findTicketsWithPagination).not.toHaveBeenCalled();
-    });
-  });
-
   describe('findTicketsWithPagination', () => {
-    it('delegates to accountService.findTicketsWithPagination with login_id and query', async () => {
+    it('should delegate to accountService with the login_id and the flattened query', async () => {
       accountService.findTicketsWithPagination.mockResolvedValue(
         paginatedTickets,
       );
 
       const result = await controllerService.findTicketsWithPagination({
-        account: ownerAccount,
-        login_id: ownerId,
+        login_id: loginId,
         query: ticketsQuery,
       });
 
       expect(accountService.findTicketsWithPagination).toHaveBeenCalledWith({
-        login_id: ownerId,
+        login_id: loginId,
         ...ticketsQuery,
       });
       expect(result).toBe(paginatedTickets);
     });
+
+    it('should propagate errors thrown by accountService.findTicketsWithPagination', async () => {
+      const error = new Error('tickets failed');
+      accountService.findTicketsWithPagination.mockRejectedValue(error);
+
+      await expect(
+        controllerService.findTicketsWithPagination({
+          login_id: loginId,
+          query: ticketsQuery,
+        }),
+      ).rejects.toBe(error);
+    });
   });
 
   describe('findMessagesWithPagination', () => {
-    it('delegates to accountService.findMessagesWithPagination with login_id and query', async () => {
+    it('should delegate to accountService with the login_id and the flattened query', async () => {
       accountService.findMessagesWithPagination.mockResolvedValue(
         paginatedMessages,
       );
 
       const result = await controllerService.findMessagesWithPagination({
-        account: ownerAccount,
-        login_id: ownerId,
+        login_id: loginId,
         query: messagesQuery,
       });
 
       expect(accountService.findMessagesWithPagination).toHaveBeenCalledWith({
-        login_id: ownerId,
+        login_id: loginId,
         ...messagesQuery,
       });
       expect(result).toBe(paginatedMessages);
     });
 
-    it('rejects a different USER with ForbiddenException', async () => {
+    it('should propagate errors thrown by accountService.findMessagesWithPagination', async () => {
+      const error = new Error('messages failed');
+      accountService.findMessagesWithPagination.mockRejectedValue(error);
+
       await expect(
         controllerService.findMessagesWithPagination({
-          account: strangerAccount,
-          login_id: ownerId,
+          login_id: loginId,
           query: messagesQuery,
         }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
-
-      expect(accountService.findMessagesWithPagination).not.toHaveBeenCalled();
+      ).rejects.toBe(error);
     });
   });
 
   describe('findAssignedAreas', () => {
-    it('delegates to accountService.findAssignedAreas with login_id', async () => {
+    it('should delegate to accountService with the login_id', async () => {
       accountService.findAssignedAreas.mockResolvedValue(areas);
 
       const result = await controllerService.findAssignedAreas({
-        account: ownerAccount,
-        login_id: ownerId,
+        login_id: loginId,
       });
 
-      expect(accountService.findAssignedAreas).toHaveBeenCalledWith(ownerId);
+      expect(accountService.findAssignedAreas).toHaveBeenCalledWith(loginId);
       expect(result).toBe(areas);
     });
 
-    it('rejects a different USER with ForbiddenException', async () => {
-      await expect(
-        controllerService.findAssignedAreas({
-          account: strangerAccount,
-          login_id: ownerId,
-        }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+    it('should propagate errors thrown by accountService.findAssignedAreas', async () => {
+      const error = new Error('areas failed');
+      accountService.findAssignedAreas.mockRejectedValue(error);
 
-      expect(accountService.findAssignedAreas).not.toHaveBeenCalled();
+      await expect(
+        controllerService.findAssignedAreas({ login_id: loginId }),
+      ).rejects.toBe(error);
     });
   });
 });
