@@ -18,7 +18,7 @@ import { PAGINATION_OPTIONS } from '../../../configuration/constants';
 export class IAreaIdParamDTO {
   @ApiProperty({
     description: 'Area id',
-    example: '00000000-0000-0000-0000-000000000001',
+    example: '019538c4-2f7a-7c31-9c1b-5b6d3a1f4e20',
     format: 'uuid',
   })
   @IsUUID()
@@ -149,7 +149,7 @@ export class IAreaCreateDTO {
 
   @ApiProperty({
     description: 'Logins assigned to the area. ADMIN or MASTER only',
-    example: ['00000000-0000-0000-0000-000000000001'],
+    example: ['019538c4-2f7a-7c31-9c1b-5b6d3a1f4e20'],
     type: [String],
     format: 'uuid',
   })
@@ -184,7 +184,7 @@ export class IAreaUpdateDTO {
 
   @ApiPropertyOptional({
     description: 'Replacement set of logins. ADMIN or MASTER only',
-    example: ['00000000-0000-0000-0000-000000000001'],
+    example: ['019538c4-2f7a-7c31-9c1b-5b6d3a1f4e20'],
     type: [String],
     format: 'uuid',
   })
