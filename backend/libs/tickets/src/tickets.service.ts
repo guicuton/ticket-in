@@ -15,6 +15,8 @@ import { CACHE_TTL } from '../../../configuration/constants';
 import { parseSort } from '../../../utils/parse-sort';
 import { Prisma } from '../../database/prisma/generated/client';
 import {
+  ITicketCreateParams,
+  ITicketCreatePromise,
   ITicketDetailPromise,
   ITicketFindManyParams,
   ITicketFindMessagesParams,
@@ -22,6 +24,8 @@ import {
   ITicketListWithPaginationPromise,
   ITicketMessageItemListPromise,
   ITicketScopedAccount,
+  ITicketUpdateParams,
+  ITicketUpdatePromise,
 } from './tickets.interface';
 
 @Injectable()
@@ -129,6 +133,78 @@ export class TicketsService {
     });
 
     return repositoryResult;
+  }
+
+  async createOne(params: ITicketCreateParams): Promise<ITicketCreatePromise> {
+    const { requester_login_id, subject, description, area_id } = params;
+
+    if (area_id) await this.validateArea(area_id);
+
+    const repositoryResult = await this.repository.createOne({
+      requester_login_id,
+      subject,
+      description,
+      ...(area_id && { area_id }),
+      created_at: new Date(),
+    });
+
+    if (!repositoryResult)
+      throw new UnprocessableEntityException('repository_error');
+
+    return repositoryResult;
+  }
+
+  async updateOneById(
+    params: ITicketUpdateParams,
+  ): Promise<ITicketUpdatePromise> {
+    const { id, area_id, requester_login_id, responser_login_id } = params;
+
+    if (area_id) await this.validateArea(area_id);
+    if (requester_login_id) await this.validateRequester(requester_login_id);
+    if (responser_login_id) await this.validateResponser(responser_login_id);
+
+    const repositoryResult = await this.repository.updateOneById(params);
+
+    if (!repositoryResult) throw new NotFoundException('ticket_not_found');
+
+    await this.invalidateTicketCache(id);
+
+    return repositoryResult;
+  }
+
+  private async validateArea(area_id: string): Promise<void> {
+    const repositoryResult = await this.areasRepository.findOneById(area_id);
+
+    if (!repositoryResult)
+      throw new UnprocessableEntityException('invalid_ticket_area');
+  }
+
+  private async validateRequester(login_id: string): Promise<void> {
+    const repositoryResult = await this.loginsRepository.findManyRolesByIds([
+      login_id,
+    ]);
+
+    if (!repositoryResult || repositoryResult.length !== 1)
+      throw new UnprocessableEntityException('invalid_ticket_requester');
+  }
+
+  private async validateResponser(login_id: string): Promise<void> {
+    const repositoryResult = await this.loginsRepository.findManyRolesByIds([
+      login_id,
+    ]);
+
+    if (!repositoryResult || repositoryResult.length !== 1)
+      throw new UnprocessableEntityException('invalid_ticket_responser');
+
+    if (!this.privilegedRoles.includes(repositoryResult[0].role))
+      throw new UnprocessableEntityException('invalid_ticket_responser');
+  }
+
+  private async invalidateTicketCache(ticket_id: string): Promise<void> {
+    await this.cache.delete([
+      `tickets:detail:${ticket_id}`,
+      `tickets:messages:${ticket_id}`,
+    ]);
   }
 
   private authorizeTicket(

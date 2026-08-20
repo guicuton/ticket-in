@@ -5,7 +5,10 @@ import {
   TicketMessagesRepository,
   TicketsRepository,
 } from '@app/database';
-import { UnprocessableEntityException } from '@nestjs/common';
+import {
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CACHE_TTL } from '../../../configuration/constants';
 import { ITicketScopedAccount } from './tickets.interface';
@@ -345,6 +348,146 @@ describe('TicketsService', () => {
         }),
       );
       expect(result).toBe(thread);
+    });
+  });
+
+  describe('createOne', () => {
+    const body = {
+      requester_login_id: user.id,
+      subject: 'Printer is down',
+      description: 'Third floor printer stopped responding',
+    };
+
+    it('should create without an area and skip the area check', async () => {
+      repository.createOne.mockResolvedValue({ id: ticket_id });
+
+      const result = await service.createOne(body);
+
+      expect(areasRepository.findOneById).not.toHaveBeenCalled();
+      expect(repository.createOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requester_login_id: user.id,
+          subject: body.subject,
+          description: body.description,
+          created_at: expect.any(Date),
+        }),
+      );
+      expect(result).toEqual({ id: ticket_id });
+    });
+
+    it('should validate the area when one is given', async () => {
+      areasRepository.findOneById.mockResolvedValue({ id: area_id });
+      repository.createOne.mockResolvedValue({ id: ticket_id });
+
+      await service.createOne({ ...body, area_id });
+
+      expect(areasRepository.findOneById).toHaveBeenCalledWith(area_id);
+    });
+
+    it('should raise 422 invalid_ticket_area for an unknown area', async () => {
+      areasRepository.findOneById.mockResolvedValue(undefined);
+
+      await expect(service.createOne({ ...body, area_id })).rejects.toThrow(
+        'invalid_ticket_area',
+      );
+      expect(repository.createOne).not.toHaveBeenCalled();
+    });
+
+    it('should never invalidate cache on create', async () => {
+      repository.createOne.mockResolvedValue({ id: ticket_id });
+
+      await service.createOne(body);
+
+      expect(cache.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateOneById', () => {
+    it('should drop both cache entries for the ticket after writing', async () => {
+      repository.updateOneById.mockResolvedValue({ id: ticket_id });
+
+      await service.updateOneById({ id: ticket_id, subject: 'New subject' });
+
+      expect(cache.delete).toHaveBeenCalledWith([
+        `tickets:detail:${ticket_id}`,
+        `tickets:messages:${ticket_id}`,
+      ]);
+    });
+
+    it('should accept an ADMIN responser', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue([
+        { id: other_login_id, role: 'ADMIN' },
+      ]);
+      repository.updateOneById.mockResolvedValue({ id: ticket_id });
+
+      await service.updateOneById({
+        id: ticket_id,
+        responser_login_id: other_login_id,
+      });
+
+      expect(loginsRepository.findManyRolesByIds).toHaveBeenCalledWith([
+        other_login_id,
+      ]);
+      expect(repository.updateOneById).toHaveBeenCalled();
+    });
+
+    it('should reject a USER responser with 422 invalid_ticket_responser', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue([
+        { id: other_login_id, role: 'USER' },
+      ]);
+
+      await expect(
+        service.updateOneById({
+          id: ticket_id,
+          responser_login_id: other_login_id,
+        }),
+      ).rejects.toThrow('invalid_ticket_responser');
+      expect(repository.updateOneById).not.toHaveBeenCalled();
+    });
+
+    it('should reject an unknown responser', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue([]);
+
+      await expect(
+        service.updateOneById({
+          id: ticket_id,
+          responser_login_id: other_login_id,
+        }),
+      ).rejects.toThrow('invalid_ticket_responser');
+    });
+
+    it('should accept a USER requester', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue([
+        { id: other_login_id, role: 'USER' },
+      ]);
+      repository.updateOneById.mockResolvedValue({ id: ticket_id });
+
+      await service.updateOneById({
+        id: ticket_id,
+        requester_login_id: other_login_id,
+      });
+
+      expect(repository.updateOneById).toHaveBeenCalled();
+    });
+
+    it('should reject an unknown requester with 422 invalid_ticket_requester', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue([]);
+
+      await expect(
+        service.updateOneById({
+          id: ticket_id,
+          requester_login_id: other_login_id,
+        }),
+      ).rejects.toThrow('invalid_ticket_requester');
+    });
+
+    it('should 404 when the ticket does not exist and skip invalidation', async () => {
+      repository.updateOneById.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateOneById({ id: ticket_id, state: 'RESOLVED' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(cache.delete).not.toHaveBeenCalled();
     });
   });
 });
