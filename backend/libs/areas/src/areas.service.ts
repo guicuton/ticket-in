@@ -1,24 +1,43 @@
 import { CacheModuleServices } from '@app/cache';
-import { AreasRepository, TicketsRepository } from '@app/database';
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+  AreasRepository,
+  LOGIN_ROLES,
+  LoginsRepository,
+  TicketsRepository,
+} from '@app/database';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { CACHE_TTL } from '../../../configuration/constants';
 import { parseSort } from '../../../utils/parse-sort';
 import { Prisma } from '../../database/prisma/generated/client';
 import {
   IAreaAccountItemListPromise,
+  IAreaCreateParams,
+  IAreaCreatePromise,
   IAreaFindAccountsParams,
   IAreaFindTicketsParams,
   IAreaListWithPaginationPromise,
   IAreasFindManyParams,
   IAreaTicketListWithPaginationPromise,
+  IAreaUpdateParams,
+  IAreaUpdatePromise,
 } from './areas.interface';
 
 @Injectable()
 export class AreasService {
+  private readonly assignableRoles: string[] = [
+    LOGIN_ROLES.ADMIN,
+    LOGIN_ROLES.MASTER,
+  ];
+
   constructor(
     private readonly cache: CacheModuleServices,
     private readonly repository: AreasRepository,
     private readonly ticketsRepository: TicketsRepository,
+    private readonly loginsRepository: LoginsRepository,
   ) {}
 
   async findManyWithPagination(
@@ -104,5 +123,68 @@ export class AreasService {
       throw new UnprocessableEntityException('repository_error');
 
     return repositoryResult;
+  }
+
+  async createOne(params: IAreaCreateParams): Promise<IAreaCreatePromise> {
+    const { alias, description, logins } = params;
+    const login_ids = [...new Set(logins)];
+
+    await this.validateAssignableLogins(login_ids);
+
+    const repositoryResult = await this.repository.createOne({
+      alias,
+      description,
+      login_ids,
+      created_at: new Date(),
+    });
+
+    if (!repositoryResult)
+      throw new UnprocessableEntityException('repository_error');
+
+    await this.invalidateCache();
+
+    return repositoryResult;
+  }
+
+  async updateOneById(
+    params: IAreaUpdateParams,
+  ): Promise<IAreaUpdatePromise> {
+    const { id, alias, description, logins } = params;
+    const login_ids = logins ? [...new Set(logins)] : undefined;
+
+    if (login_ids) await this.validateAssignableLogins(login_ids);
+
+    const repositoryResult = await this.repository.updateOneById({
+      id,
+      alias,
+      description,
+      ...(login_ids && { login_ids }),
+    });
+
+    if (!repositoryResult) throw new NotFoundException('area_not_found');
+
+    await this.invalidateCache();
+
+    return repositoryResult;
+  }
+
+  private async validateAssignableLogins(login_ids: string[]): Promise<void> {
+    const repositoryResult =
+      await this.loginsRepository.findManyRolesByIds(login_ids);
+
+    if (!repositoryResult || repositoryResult.length !== login_ids.length)
+      throw new UnprocessableEntityException('invalid_area_logins');
+
+    const hasForbiddenRole = repositoryResult.some(
+      (item) => !this.assignableRoles.includes(item.role),
+    );
+
+    if (hasForbiddenRole)
+      throw new UnprocessableEntityException('invalid_area_logins');
+  }
+
+  private async invalidateCache(): Promise<void> {
+    await this.cache.deleteCollection('areas:*');
+    await this.cache.deleteCollection('account:areas:*');
   }
 }

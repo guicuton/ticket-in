@@ -61,3 +61,24 @@ export interface IAreaTicketItemListPromise {
 export interface IAreaTicketListWithPaginationPromise extends TPaginationData {
   data: IAreaTicketItemListPromise[];
 }
+
+export interface IAreaCreateParams {
+  alias: string;
+  description: string;
+  logins: string[];
+}
+
+export interface IAreaCreatePromise {
+  id: string;
+}
+
+export interface IAreaUpdateParams {
+  id: string;
+  alias?: string;
+  description?: string;
+  logins?: string[];
+}
+
+export interface IAreaUpdatePromise {
+  id: string;
+}

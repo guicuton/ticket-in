@@ -1,6 +1,13 @@
 import { CacheModuleServices } from '@app/cache';
-import { AreasRepository, TicketsRepository } from '@app/database';
-import { UnprocessableEntityException } from '@nestjs/common';
+import {
+  AreasRepository,
+  LoginsRepository,
+  TicketsRepository,
+} from '@app/database';
+import {
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CACHE_TTL } from '../../../configuration/constants';
 import { AreasService } from './areas.service';
@@ -10,8 +17,14 @@ describe('AreasService', () => {
   let cache: jest.Mocked<CacheModuleServices>;
   let repository: jest.Mocked<AreasRepository>;
   let ticketsRepository: jest.Mocked<TicketsRepository>;
+  let loginsRepository: jest.Mocked<LoginsRepository>;
 
   const area_id = '00000000-0000-0000-0000-000000000001';
+
+  const rolesOf = (
+    ...entries: [string, 'ADMIN' | 'MASTER' | 'USER'][]
+  ): { id: string; role: 'ADMIN' | 'MASTER' | 'USER' }[] =>
+    entries.map(([id, role]) => ({ id, role }));
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -30,12 +43,20 @@ describe('AreasService', () => {
           useValue: {
             findManyWithPagination: jest.fn(),
             findAccountsById: jest.fn(),
+            createOne: jest.fn(),
+            updateOneById: jest.fn(),
           },
         },
         {
           provide: TicketsRepository,
           useValue: {
             findManyWithPagination: jest.fn(),
+          },
+        },
+        {
+          provide: LoginsRepository,
+          useValue: {
+            findManyRolesByIds: jest.fn(),
           },
         },
       ],
@@ -45,6 +66,7 @@ describe('AreasService', () => {
     cache = module.get(CacheModuleServices);
     repository = module.get(AreasRepository);
     ticketsRepository = module.get(TicketsRepository);
+    loginsRepository = module.get(LoginsRepository);
   });
 
   afterEach(() => {
@@ -186,6 +208,141 @@ describe('AreasService', () => {
           sort: 'created_at',
         }),
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+  });
+
+  describe('createOne', () => {
+    const params = {
+      alias: 'Support',
+      description: 'First line support',
+      logins: ['login-a', 'login-b'],
+    };
+
+    it('should create the area and invalidate both the areas and the account areas caches', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue(
+        rolesOf(['login-a', 'ADMIN'], ['login-b', 'MASTER']),
+      );
+      repository.createOne.mockResolvedValue({ id: area_id });
+
+      const result = await service.createOne(params);
+
+      expect(repository.createOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          alias: params.alias,
+          description: params.description,
+          login_ids: params.logins,
+        }),
+      );
+      expect(cache.deleteCollection).toHaveBeenCalledWith('areas:*');
+      expect(cache.deleteCollection).toHaveBeenCalledWith('account:areas:*');
+      expect(result).toEqual({ id: area_id });
+    });
+
+    it('should reject a login whose role is USER', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue(
+        rolesOf(['login-a', 'ADMIN'], ['login-b', 'USER']),
+      );
+
+      await expect(service.createOne(params)).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(repository.createOne).not.toHaveBeenCalled();
+    });
+
+    it('should reject when one of the logins does not exist', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue(
+        rolesOf(['login-a', 'ADMIN']),
+      );
+
+      await expect(service.createOne(params)).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(repository.createOne).not.toHaveBeenCalled();
+    });
+
+    it('should deduplicate repeated login ids before validating and creating', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue(
+        rolesOf(['login-a', 'ADMIN']),
+      );
+      repository.createOne.mockResolvedValue({ id: area_id });
+
+      await service.createOne({ ...params, logins: ['login-a', 'login-a'] });
+
+      expect(loginsRepository.findManyRolesByIds).toHaveBeenCalledWith([
+        'login-a',
+      ]);
+      expect(repository.createOne).toHaveBeenCalledWith(
+        expect.objectContaining({ login_ids: ['login-a'] }),
+      );
+    });
+
+    it('should throw UnprocessableEntityException when the repository returns nothing', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue(
+        rolesOf(['login-a', 'ADMIN'], ['login-b', 'MASTER']),
+      );
+      repository.createOne.mockResolvedValue(undefined);
+
+      await expect(service.createOne(params)).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(cache.deleteCollection).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateOneById', () => {
+    it('should update scalar fields without touching the logins repository', async () => {
+      repository.updateOneById.mockResolvedValue({ id: area_id });
+
+      const result = await service.updateOneById({
+        id: area_id,
+        alias: 'Renamed',
+      });
+
+      expect(loginsRepository.findManyRolesByIds).not.toHaveBeenCalled();
+      expect(repository.updateOneById).toHaveBeenCalledWith({
+        id: area_id,
+        alias: 'Renamed',
+        description: undefined,
+      });
+      expect(cache.deleteCollection).toHaveBeenCalledWith('areas:*');
+      expect(cache.deleteCollection).toHaveBeenCalledWith('account:areas:*');
+      expect(result).toEqual({ id: area_id });
+    });
+
+    it('should validate the roles before replacing the link set', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue(
+        rolesOf(['login-a', 'MASTER']),
+      );
+      repository.updateOneById.mockResolvedValue({ id: area_id });
+
+      await service.updateOneById({ id: area_id, logins: ['login-a'] });
+
+      expect(repository.updateOneById).toHaveBeenCalledWith({
+        id: area_id,
+        alias: undefined,
+        description: undefined,
+        login_ids: ['login-a'],
+      });
+    });
+
+    it('should reject a USER role and never reach the repository', async () => {
+      loginsRepository.findManyRolesByIds.mockResolvedValue(
+        rolesOf(['login-a', 'USER']),
+      );
+
+      await expect(
+        service.updateOneById({ id: area_id, logins: ['login-a'] }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(repository.updateOneById).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when the area does not exist', async () => {
+      repository.updateOneById.mockResolvedValue(undefined);
+
+      await expect(
+        service.updateOneById({ id: area_id, alias: 'Renamed' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(cache.deleteCollection).not.toHaveBeenCalled();
     });
   });
 });
