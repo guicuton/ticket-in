@@ -17,6 +17,15 @@
         "tsConfigPath": "libs/account/tsconfig.lib.json"
       }
     },
+    "areas": {
+      "type": "library",
+      "root": "libs/areas",
+      "entryFile": "index",
+      "sourceRoot": "libs/areas/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/areas/tsconfig.lib.json"
+      }
+    },
     "auth": {
       "type": "library",
       "root": "libs/auth",

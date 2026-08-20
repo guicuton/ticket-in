@@ -26,6 +26,8 @@
     "paths": {
       "@app/account": ["libs/account/src"],
       "@app/account/*": ["libs/account/src/*"],
+      "@app/areas": ["libs/areas/src"],
+      "@app/areas/*": ["libs/areas/src/*"],
       "@app/auth": ["libs/auth/src"],
       "@app/auth/*": ["libs/auth/src/*"],
       "@app/cache": ["libs/cache/src"],
