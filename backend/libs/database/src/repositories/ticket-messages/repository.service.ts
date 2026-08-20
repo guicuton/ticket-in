@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database.service';
-import { ITicketMessagesFindManyWithPaginationParams } from './repository.interface';
+import {
+  ITicketMessagesFindManyWithPaginationParams,
+  ITicketMessagesFindManyByTicketIdParams,
+  ITicketMessageItemPromise,
+} from './repository.interface';
 import { offsetPaginator } from 'prisma-offset-paginator';
 import { PAGINATION_OPTIONS } from '../../../../../configuration/constants';
 import { TPaginationData } from 'prisma-offset-paginator/dist/interfaces';
@@ -31,5 +35,26 @@ export class TicketMessagesRepository {
     } catch (err) {
       this.repository.errorHandler(err as Error);
     }
+  }
+
+  async findManyByTicketId(
+    params: ITicketMessagesFindManyByTicketIdParams,
+  ): Promise<ITicketMessageItemPromise[] | void> {
+    const { ticket_id } = params;
+
+    const promise = await this.repository.ticket_messages
+      .findMany({
+        where: { ticket_id },
+        select: {
+          id: true,
+          message: true,
+          created_at: true,
+          login: { select: { id: true, username: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      })
+      .catch((err) => this.repository.errorHandler(err));
+
+    if (promise) return promise;
   }
 }
