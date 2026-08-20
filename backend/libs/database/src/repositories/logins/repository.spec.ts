@@ -99,7 +99,7 @@ describe('LoginsRepository', () => {
 
       expect(database.logins.findFirst).toHaveBeenCalledWith({
         where: params,
-        select: { id: true, password: true },
+        select: { id: true, password: true, role: true },
       });
       expect(result).toBe(expected);
     });
@@ -111,8 +111,8 @@ describe('LoginsRepository', () => {
       database.logins.update.mockResolvedValue(expected);
 
       const result = await repository.updatePasswordById({
-        loginId,
-        passwordHash: 'new-hash',
+        login_id: loginId,
+        password_hash: 'new-hash',
       });
 
       expect(database.logins.update).toHaveBeenCalledWith({
