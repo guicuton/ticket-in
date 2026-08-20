@@ -161,10 +161,26 @@ cache entry for it can exist.
 `tickets/list` is not cached — it is paginated and filterable, so the key space
 would be unbounded and the hit rate near zero.
 
-No cross-domain invalidation. `areas:accounts` holds logins per area and
-`account:areas` holds areas per login; neither contains ticket data, so a
-ticket write cannot stale them. Conversely `areas` writes cannot stale
-`tickets:*`. This is a deliberate, checked conclusion, not an omission.
+Cross-domain invalidation runs in one direction only.
+
+**Tickets → areas: nothing to do.** `areas:accounts` holds logins per area and
+`account:areas` holds areas per login; neither contains ticket data, so no
+ticket write can stale them. `areas/:id/tickets` is uncached.
+
+**Areas → tickets: required.** The ticket detail embeds `area.alias`, so
+renaming an area stales every cached detail that points at it.
+`AreasService.invalidateCache` therefore also drops `tickets:detail:*`. A
+pattern delete is correct here, unlike the exact-key delete a ticket write
+uses: an area write has no way to enumerate the tickets that reference it
+without a query, so `SCAN` is the cheaper option.
+
+`tickets:messages:*` is deliberately NOT dropped by an area write — the
+message thread carries no area data.
+
+The first version of this section claimed no cross-domain invalidation was
+needed in either direction. That was wrong: the check considered which
+tables each cache read from and missed the denormalized `alias` copied into
+the detail payload. The final whole-branch review caught it.
 
 ## 6. Validation and errors
 

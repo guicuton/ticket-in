@@ -251,6 +251,7 @@ describe('AreasService', () => {
       );
       expect(cache.deleteCollection).toHaveBeenCalledWith('areas:*');
       expect(cache.deleteCollection).toHaveBeenCalledWith('account:areas:*');
+      expect(cache.deleteCollection).toHaveBeenCalledWith('tickets:detail:*');
       expect(result).toEqual({ id: area_id });
     });
 
@@ -322,6 +323,9 @@ describe('AreasService', () => {
       });
       expect(cache.deleteCollection).toHaveBeenCalledWith('areas:*');
       expect(cache.deleteCollection).toHaveBeenCalledWith('account:areas:*');
+      // Renaming an area stales every cached ticket detail: the detail
+      // payload embeds area.alias, so it must be dropped here too.
+      expect(cache.deleteCollection).toHaveBeenCalledWith('tickets:detail:*');
       expect(result).toEqual({ id: area_id });
     });
 
