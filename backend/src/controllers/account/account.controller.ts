@@ -1,6 +1,9 @@
 import {
+  IAccountAreaItemListPromise,
   IAccountCreatePromise,
   IAccountListWithPaginationPromise,
+  IAccountMessageListWithPaginationPromise,
+  IAccountTicketListWithPaginationPromise,
 } from '@app/account';
 import type { IAuthenticatedAccount } from '@app/auth';
 import { LocalAuthGuard } from '@app/auth';
@@ -10,6 +13,7 @@ import {
   Controller,
   Get,
   Ip,
+  Param,
   Post,
   Put,
   Query,
@@ -28,7 +32,10 @@ import { Public } from '../../../decorators/public.decorator';
 import { Roles } from '../../../decorators/roles.decorator';
 import {
   IAccountCreateDTO,
+  IAccountIdParamDTO,
+  IAccountMessagesListQueryDTO,
   IAccountsListQueryDTO,
+  IAccountTicketsListQueryDTO,
   IAuthLoginDTO,
   IAuthLoginResponseDTO,
   IAuthPutPasswordDTO,
@@ -141,5 +148,98 @@ export class AccountController {
     @Query() query: IAccountsListQueryDTO,
   ): Promise<IAccountListWithPaginationPromise> {
     return await this.controllerService.findAllWithPagination(query);
+  }
+
+  @ApiOperation({
+    summary: 'Get tickets related to an account',
+    description:
+      'Return a paginated list of tickets where the account is the requester or the responser. Restricted to the account owner or an ADMIN/MASTER.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiExtraModels(IAccountTicketsListQueryDTO)
+  @ApiResponse({
+    status: 200,
+    description: 'Tickets list.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing/invalid token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Account is neither the owner nor an ADMIN/MASTER.',
+  })
+  @Get('tickets/:id')
+  async tickets(
+    @Account() account: IAuthenticatedAccount,
+    @Param() params: IAccountIdParamDTO,
+    @Query() query: IAccountTicketsListQueryDTO,
+  ): Promise<IAccountTicketListWithPaginationPromise> {
+    return await this.controllerService.findTicketsWithPagination({
+      account,
+      login_id: params.id,
+      query,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Get messages related to an account',
+    description:
+      'Return a paginated list of ticket messages sent by the account. Restricted to the account owner or an ADMIN/MASTER.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiExtraModels(IAccountMessagesListQueryDTO)
+  @ApiResponse({
+    status: 200,
+    description: 'Messages list.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing/invalid token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Account is neither the owner nor an ADMIN/MASTER.',
+  })
+  @Get('messages/:id')
+  async messages(
+    @Account() account: IAuthenticatedAccount,
+    @Param() params: IAccountIdParamDTO,
+    @Query() query: IAccountMessagesListQueryDTO,
+  ): Promise<IAccountMessageListWithPaginationPromise> {
+    return await this.controllerService.findMessagesWithPagination({
+      account,
+      login_id: params.id,
+      query,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Get areas assigned to an account',
+    description:
+      'Return the list of areas assigned to the account. Restricted to the account owner or an ADMIN/MASTER.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiResponse({
+    status: 200,
+    description: 'Assigned areas list.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing/invalid token.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Account is neither the owner nor an ADMIN/MASTER.',
+  })
+  @Get('areas/:id')
+  async areas(
+    @Account() account: IAuthenticatedAccount,
+    @Param() params: IAccountIdParamDTO,
+  ): Promise<IAccountAreaItemListPromise[]> {
+    return await this.controllerService.findAssignedAreas({
+      account,
+      login_id: params.id,
+    });
   }
 }

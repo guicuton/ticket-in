@@ -1,5 +1,5 @@
 import { IAccountCreatePromise } from '@app/account';
-import { LOGIN_ROLES } from '@app/database';
+import { LOGIN_ROLES, TICKET_RELATIONS } from '@app/database';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -10,6 +10,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MinLength,
 } from 'class-validator';
@@ -204,4 +205,110 @@ export class IAccountCreateDTO {
 export class IAccountCreateResponseDTO implements IAccountCreatePromise {
   @ApiProperty({ format: 'uuid' })
   id: string;
+}
+
+export class IAccountIdParamDTO {
+  @ApiProperty({
+    description: 'Account id',
+    example: '00000000-0000-0000-0000-000000000001',
+    format: 'uuid',
+  })
+  @IsUUID()
+  id: string;
+}
+
+export class IAccountTicketsListQueryDTO {
+  @ApiProperty({
+    description: 'Ticket relation to the account',
+    example: 'requester',
+    enum: Object.keys(TICKET_RELATIONS),
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(Object.keys(TICKET_RELATIONS))
+  relation: keyof typeof TICKET_RELATIONS;
+
+  @ApiPropertyOptional({
+    description: 'Set the offset page for pagination',
+    example: '0',
+    type: 'number',
+  })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  offset?: number;
+
+  @ApiProperty({
+    description: 'Items per page',
+    example: '10',
+    type: 'number',
+  })
+  @IsIn(PAGINATION_OPTIONS.perPage)
+  @IsInt()
+  @IsNotEmpty()
+  @Type(() => Number)
+  per_page: number;
+
+  @ApiProperty({
+    description: 'Column sorter',
+    example: 'created_at',
+    type: 'string',
+    enum: [
+      'created_at',
+      '-created_at',
+      'updated_at',
+      '-updated_at',
+      'priority',
+      '-priority',
+      'state',
+      '-state',
+    ],
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn([
+    'created_at',
+    '-created_at',
+    'updated_at',
+    '-updated_at',
+    'priority',
+    '-priority',
+    'state',
+    '-state',
+  ])
+  sort: string;
+}
+
+export class IAccountMessagesListQueryDTO {
+  @ApiPropertyOptional({
+    description: 'Set the offset page for pagination',
+    example: '0',
+    type: 'number',
+  })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  offset?: number;
+
+  @ApiProperty({
+    description: 'Items per page',
+    example: '10',
+    type: 'number',
+  })
+  @IsIn(PAGINATION_OPTIONS.perPage)
+  @IsInt()
+  @IsNotEmpty()
+  @Type(() => Number)
+  per_page: number;
+
+  @ApiProperty({
+    description: 'Column sorter',
+    example: 'created_at',
+    type: 'string',
+    enum: ['created_at', '-created_at'],
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(['created_at', '-created_at'])
+  sort: string;
 }
