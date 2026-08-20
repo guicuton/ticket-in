@@ -25,6 +25,9 @@
 		"migration:seed": "prisma db seed --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts",
 		"migration:create": "prisma migrate dev --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts"
 	},
+	"prisma": {
+		"seed": "npm run migration:seed"
+	},
 	"devDependencies": {
 		"@types/bcrypt": "^6.0.0",
 		"concurrently": "^10.0.5",

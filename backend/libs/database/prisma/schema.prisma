@@ -30,6 +30,9 @@ model logins {
 
   @@index([username])
   @@index([email])
+  @@index([role])
+  @@index([created_at])
+  @@index([updated_at])
 }
 
 model logins_assigned_areas {
@@ -51,6 +54,9 @@ model areas {
 
   logins  logins_assigned_areas[]
   tickets tickets[]
+
+  @@index([alias])
+  @@index([created_at])
 }
 
 model tickets {
@@ -71,8 +77,16 @@ model tickets {
   login_responser logins? @relation("responser", fields: [responser_login_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
   login_requester logins  @relation("requester", fields: [requester_login_id], references: [id])
 
+  @@index([subject])
+  @@index([priority])
+  @@index([state])
+  @@index([created_at])
+  @@index([updated_at])
   @@index([area_id, state])
   @@index([area_id, priority])
+  @@index([area_id, created_at])
+  @@index([area_id, updated_at])
+  @@index([area_id, subject])
   @@index([responser_login_id, state])
   @@index([responser_login_id, priority])
   @@index([requester_login_id])
@@ -89,6 +103,8 @@ model ticket_messages {
   login  logins  @relation(fields: [login_id], references: [id])
 
   @@index([ticket_id, created_at])
+  @@index([login_id, created_at])
+  @@index([created_at])
 }
 
 enum TICKET_PRIORITY {

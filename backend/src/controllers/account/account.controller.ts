@@ -204,7 +204,7 @@ export class AccountController {
     description: 'Account is not an ADMIN/MASTER.',
   })
   @Roles(LOGIN_ROLES.ADMIN, LOGIN_ROLES.MASTER)
-  @Get('tickets/:id')
+  @Get(':id/tickets')
   async ticketsById(
     @Param() params: IAccountIdParamDTO,
     @Query() query: IAccountTicketsListQueryDTO,
@@ -269,7 +269,7 @@ export class AccountController {
     description: 'Account is not an ADMIN/MASTER.',
   })
   @Roles(LOGIN_ROLES.ADMIN, LOGIN_ROLES.MASTER)
-  @Get('messages/:id')
+  @Get(':id/messages')
   async messagesById(
     @Param() params: IAccountIdParamDTO,
     @Query() query: IAccountMessagesListQueryDTO,
@@ -325,7 +325,7 @@ export class AccountController {
     description: 'Account is not an ADMIN/MASTER.',
   })
   @Roles(LOGIN_ROLES.ADMIN, LOGIN_ROLES.MASTER)
-  @Get('areas/:id')
+  @Get(':id/areas')
   async areasById(
     @Param() params: IAccountIdParamDTO,
   ): Promise<IAccountAreaItemListPromise[]> {
