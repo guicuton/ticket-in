@@ -45,3 +45,12 @@ export interface ILoginsCreateOneParams {
 export interface ILoginsCreateOnePromise {
   id: string;
 }
+
+export interface ILoginsFindAssignedAreasPromise {
+  assigned_areas: {
+    areas: {
+      id: string;
+      alias: string;
+    };
+  }[];
+}
