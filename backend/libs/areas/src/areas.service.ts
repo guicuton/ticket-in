@@ -18,9 +18,9 @@ import {
   IAreaCreateParams,
   IAreaCreatePromise,
   IAreaFindAccountsParams,
+  IAreaFindManyParams,
   IAreaFindTicketsParams,
   IAreaListWithPaginationPromise,
-  IAreasFindManyParams,
   IAreaTicketListWithPaginationPromise,
   IAreaUpdateParams,
   IAreaUpdatePromise,
@@ -41,7 +41,7 @@ export class AreasService {
   ) {}
 
   async findManyWithPagination(
-    params: IAreasFindManyParams,
+    params: IAreaFindManyParams,
   ): Promise<IAreaListWithPaginationPromise> {
     const { per_page, offset } = params;
     const sort = parseSort(params.sort);

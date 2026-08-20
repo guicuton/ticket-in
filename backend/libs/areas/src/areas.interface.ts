@@ -4,7 +4,7 @@ import {
   TICKET_STATE,
 } from '../../database/prisma/generated/enums';
 
-export interface IAreasFindManyParams {
+export interface IAreaFindManyParams {
   offset?: number;
   per_page: number;
   sort: string;
