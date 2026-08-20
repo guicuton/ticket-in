@@ -6,12 +6,21 @@ import {
   TicketMessagesRepository,
   TicketsRepository,
 } from '@app/database';
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { CACHE_TTL } from '../../../configuration/constants';
 import { parseSort } from '../../../utils/parse-sort';
 import { Prisma } from '../../database/prisma/generated/client';
 import {
+  ITicketDetailPromise,
   ITicketFindManyParams,
+  ITicketFindMessagesParams,
+  ITicketFindOneParams,
   ITicketListWithPaginationPromise,
+  ITicketMessageItemListPromise,
   ITicketScopedAccount,
 } from './tickets.interface';
 
@@ -60,6 +69,78 @@ export class TicketsService {
       throw new UnprocessableEntityException('repository_error');
 
     return repositoryResult;
+  }
+
+  async findOneById(
+    params: ITicketFindOneParams,
+  ): Promise<ITicketDetailPromise> {
+    const { ticket_id, account } = params;
+
+    const cacheKey = 'tickets:detail';
+    const cache = await this.cache.get<ITicketDetailPromise>({
+      key: cacheKey,
+      item: ticket_id,
+    });
+
+    if (cache) return this.authorizeTicket(cache, account);
+
+    const repositoryResult =
+      await this.repository.findOne<Prisma.ticketsWhereInput>({
+        where: { id: ticket_id },
+      });
+
+    if (!repositoryResult) throw new NotFoundException('ticket_not_found');
+
+    await this.cache.set({
+      key: cacheKey,
+      item: ticket_id,
+      data: repositoryResult,
+      ttl: CACHE_TTL.ten,
+    });
+
+    return this.authorizeTicket(repositoryResult, account);
+  }
+
+  async findMessagesByTicketId(
+    params: ITicketFindMessagesParams,
+  ): Promise<ITicketMessageItemListPromise[]> {
+    const { ticket_id, account } = params;
+
+    await this.findOneById({ ticket_id, account });
+
+    const cacheKey = 'tickets:messages';
+    const cache = await this.cache.get<ITicketMessageItemListPromise[]>({
+      key: cacheKey,
+      item: ticket_id,
+    });
+
+    if (cache) return cache;
+
+    const repositoryResult =
+      await this.ticketMessagesRepository.findManyByTicketId({ ticket_id });
+
+    if (!repositoryResult) return [];
+
+    await this.cache.set({
+      key: cacheKey,
+      item: ticket_id,
+      data: repositoryResult,
+      ttl: CACHE_TTL.ten,
+    });
+
+    return repositoryResult;
+  }
+
+  private authorizeTicket(
+    ticket: ITicketDetailPromise,
+    account: ITicketScopedAccount,
+  ): ITicketDetailPromise {
+    if (this.isPrivileged(account)) return ticket;
+
+    if (ticket.requester_login_id !== account.id)
+      throw new NotFoundException('ticket_not_found');
+
+    return ticket;
   }
 
   private isPrivileged(account: ITicketScopedAccount): boolean {
