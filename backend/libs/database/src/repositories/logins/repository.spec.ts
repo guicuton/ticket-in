@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseService } from '../../database.service';
 import { LoginsRepository } from './repository.service';
+import { ILoginsCreateOneParams } from './repository.interface';
 
 describe('LoginsRepository', () => {
   let repository: LoginsRepository;
@@ -42,10 +43,11 @@ describe('LoginsRepository', () => {
   });
 
   describe('createOne', () => {
-    const params = {
+    const params: ILoginsCreateOneParams = {
       username: 'admin',
       password: 'hash',
       email: 'a@b.com',
+      role: 'ADMIN',
       created_at: new Date(),
     };
 
