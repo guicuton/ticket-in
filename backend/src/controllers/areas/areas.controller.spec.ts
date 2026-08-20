@@ -9,10 +9,10 @@ describe('AreasController', () => {
 
   const account: IAuthenticatedAccount = {
     username: 'admin',
-    id: '00000000-0000-0000-0000-000000000001',
+    id: '019538c4-2f7a-7c31-9c1b-000000000001',
     role: 'MASTER',
   };
-  const area_id = '00000000-0000-0000-0000-000000000002';
+  const area_id = '019538c4-2f7a-7c31-9c1b-000000000002';
   const ip = '127.0.0.1';
 
   beforeEach(async () => {
@@ -101,7 +101,7 @@ describe('AreasController', () => {
     const body = {
       alias: 'Support',
       description: 'First line support',
-      logins: ['00000000-0000-0000-0000-000000000003'],
+      logins: ['019538c4-2f7a-7c31-9c1b-000000000003'],
     };
 
     it('should return the created id', async () => {

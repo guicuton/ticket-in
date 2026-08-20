@@ -12,7 +12,7 @@ describe('AuthStrategyLocal', () => {
   const username = 'admin';
   const password = 'plain-pass';
   const hashedPassword = '$2b$10$hashed';
-  const loginId = '00000000-0000-0000-0000-000000000001';
+  const loginId = '019538c4-2f7a-7c31-9c1b-000000000001';
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

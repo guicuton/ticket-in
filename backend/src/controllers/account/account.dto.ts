@@ -211,7 +211,7 @@ export class IAccountCreateResponseDTO implements IAccountCreatePromise {
 export class IAccountIdParamDTO {
   @ApiProperty({
     description: 'Account id',
-    example: '00000000-0000-0000-0000-000000000001',
+    example: '019538c4-2f7a-7c31-9c1b-000000000001',
     format: 'uuid',
   })
   @IsUUID()

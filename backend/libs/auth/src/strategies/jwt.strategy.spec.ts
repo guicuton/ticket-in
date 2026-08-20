@@ -46,7 +46,7 @@ describe('AuthStrategyJwt', () => {
     it('should map the jwt payload to an authenticated user', () => {
       const payload: IJwtGuardPayload = {
         username: 'admin',
-        sub: '00000000-0000-0000-0000-000000000001',
+        sub: '019538c4-2f7a-7c31-9c1b-000000000001',
       };
 
       const result = strategy.validate(payload);

@@ -19,7 +19,7 @@ describe('AreasService', () => {
   let ticketsRepository: jest.Mocked<TicketsRepository>;
   let loginsRepository: jest.Mocked<LoginsRepository>;
 
-  const area_id = '00000000-0000-0000-0000-000000000001';
+  const area_id = '019538c4-2f7a-7c31-9c1b-000000000001';
 
   const rolesOf = (
     ...entries: [string, 'ADMIN' | 'MASTER' | 'USER'][]

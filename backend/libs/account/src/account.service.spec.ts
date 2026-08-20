@@ -29,7 +29,7 @@ describe('AccountService', () => {
   let cache: jest.Mocked<CacheModuleServices>;
   let repository: jest.Mocked<LoginRepository>;
 
-  const uuid = '00000000-0000-0000-0000-000000000001';
+  const uuid = '019538c4-2f7a-7c31-9c1b-000000000001';
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -235,7 +235,7 @@ describe('AccountService - tickets, messages and areas', () => {
   let ticketsRepository: jest.Mocked<TicketsRepository>;
   let ticketMessagesRepository: jest.Mocked<TicketMessagesRepository>;
 
-  const loginId = '00000000-0000-0000-0000-000000000002';
+  const loginId = '019538c4-2f7a-7c31-9c1b-000000000002';
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

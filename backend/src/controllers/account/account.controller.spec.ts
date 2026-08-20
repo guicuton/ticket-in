@@ -27,7 +27,7 @@ describe('AccountController', () => {
 
   const user: IAuthenticatedAccount = {
     username: 'admin',
-    id: '00000000-0000-0000-0000-000000000001',
+    id: '019538c4-2f7a-7c31-9c1b-000000000001',
     role: 'MASTER',
   };
   const ip = '127.0.0.1';
@@ -93,7 +93,7 @@ describe('AccountController', () => {
 
     it('should return the uuid of new registered user by controllerService.createOne', async () => {
       const expected: IAuthLoginCreatePromise = {
-        id: '00000000-0000-0000-0000-000000000099',
+        id: '019538c4-2f7a-7c31-9c1b-000000000099',
       };
       controllerService.createOne.mockResolvedValue(expected);
 
@@ -202,7 +202,7 @@ describe('AccountController', () => {
 
   describe('ticketsById', () => {
     const params: IAccountIdParamDTO = {
-      id: '00000000-0000-0000-0000-000000000010',
+      id: '019538c4-2f7a-7c31-9c1b-000000000010',
     };
     const query: IAccountTicketsListQueryDTO = {
       relation: 'requester',
@@ -270,7 +270,7 @@ describe('AccountController', () => {
 
   describe('messagesById', () => {
     const params: IAccountIdParamDTO = {
-      id: '00000000-0000-0000-0000-000000000010',
+      id: '019538c4-2f7a-7c31-9c1b-000000000010',
     };
     const query: IAccountMessagesListQueryDTO = {
       per_page: 10,
@@ -327,7 +327,7 @@ describe('AccountController', () => {
 
   describe('areasById', () => {
     const params: IAccountIdParamDTO = {
-      id: '00000000-0000-0000-0000-000000000010',
+      id: '019538c4-2f7a-7c31-9c1b-000000000010',
     };
 
     it('should return the given account assigned areas by controllerService.findAssignedAreas', async () => {
