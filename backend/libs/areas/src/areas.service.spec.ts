@@ -108,9 +108,7 @@ describe('AreasService', () => {
   });
 
   describe('findAccountsByAreaId', () => {
-    const accounts = [
-      { id: 'login-a', username: 'admin', email: 'a@b.com' },
-    ];
+    const accounts = [{ id: 'login-a', username: 'admin', email: 'a@b.com' }];
 
     it('should return the cached value and skip the repository', async () => {
       cache.get.mockResolvedValue(accounts);

@@ -146,9 +146,7 @@ export class AreasService {
     return repositoryResult;
   }
 
-  async updateOneById(
-    params: IAreaUpdateParams,
-  ): Promise<IAreaUpdatePromise> {
+  async updateOneById(params: IAreaUpdateParams): Promise<IAreaUpdatePromise> {
     const { id, alias, description, logins } = params;
     const login_ids = logins ? [...new Set(logins)] : undefined;
 
