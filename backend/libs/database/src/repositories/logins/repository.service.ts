@@ -4,6 +4,7 @@ import {
   ILoginsCreateOneParams,
   ILoginsCreateOnePromise,
   ILoginsFindAllWithPaginationParams,
+  ILoginsFindAssignedAreasPromise,
   ILoginsFindFirstParams,
   ILoginsFindFirstPromise,
   ILoginsUpdatePasswordParams,
@@ -106,6 +107,30 @@ export class LoginsRepository {
         },
         select: {
           id: true,
+        },
+      })
+      .catch((err) => this.repository.errorHandler(err));
+
+    if (promise) return promise;
+  }
+
+  async findAssignedAreasById(
+    id: string,
+  ): Promise<ILoginsFindAssignedAreasPromise | void> {
+    const promise = await this.repository.logins
+      .findUnique({
+        where: { id },
+        select: {
+          assigned_areas: {
+            select: {
+              areas: {
+                select: {
+                  id: true,
+                  alias: true,
+                },
+              },
+            },
+          },
         },
       })
       .catch((err) => this.repository.errorHandler(err));

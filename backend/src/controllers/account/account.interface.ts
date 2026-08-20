@@ -1,6 +1,11 @@
 import { IAuthenticatedAccount } from '@app/auth';
 import { LOGIN_ROLES } from '@app/database';
-import { IAccountCreateDTO, IAuthPutPasswordDTO } from './account.dto';
+import {
+  IAccountCreateDTO,
+  IAccountMessagesListQueryDTO,
+  IAccountTicketsListQueryDTO,
+  IAuthPutPasswordDTO,
+} from './account.dto';
 
 export interface IAuthLoginParams {
   account: IAuthenticatedAccount;
@@ -38,4 +43,21 @@ export interface IAccountItemListPromise {
     tickets_requester: number;
     tickets_responser: number;
   };
+}
+
+export interface IAccountTicketsListParams {
+  account: IAuthenticatedAccount;
+  login_id: string;
+  query: IAccountTicketsListQueryDTO;
+}
+
+export interface IAccountMessagesListParams {
+  account: IAuthenticatedAccount;
+  login_id: string;
+  query: IAccountMessagesListQueryDTO;
+}
+
+export interface IAccountAreasListParams {
+  account: IAuthenticatedAccount;
+  login_id: string;
 }

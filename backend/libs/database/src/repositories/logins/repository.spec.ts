@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseService } from '../../database.service';
-import { LoginRepository } from './repository.service';
+import { LoginRepository, LoginsRepository } from './repository.service';
 
 describe('LoginRepository', () => {
   let repository: LoginRepository;
@@ -121,6 +121,85 @@ describe('LoginRepository', () => {
         select: { id: true },
       });
       expect(result).toBe(expected);
+    });
+  });
+});
+
+describe('LoginsRepository', () => {
+  let repository: LoginsRepository;
+  let database: {
+    logins: {
+      findUnique: jest.Mock;
+    };
+    errorHandler: jest.Mock;
+  };
+
+  const loginId = '00000000-0000-0000-0000-000000000001';
+
+  beforeEach(async () => {
+    database = {
+      logins: {
+        findUnique: jest.fn(),
+      },
+      errorHandler: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LoginsRepository,
+        { provide: DatabaseService, useValue: database },
+      ],
+    }).compile();
+
+    repository = module.get(LoginsRepository);
+  });
+
+  describe('findAssignedAreasById', () => {
+    it('should call logins.findUnique with the id and the assigned areas select shape', async () => {
+      const expected = {
+        assigned_areas: [{ areas: { id: 'area-id', alias: 'support' } }],
+      };
+      database.logins.findUnique.mockResolvedValue(expected);
+
+      await repository.findAssignedAreasById(loginId);
+
+      expect(database.logins.findUnique).toHaveBeenCalledWith({
+        where: { id: loginId },
+        select: {
+          assigned_areas: {
+            select: {
+              areas: {
+                select: {
+                  id: true,
+                  alias: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('should return the row containing the assigned areas', async () => {
+      const expected = {
+        assigned_areas: [{ areas: { id: 'area-id', alias: 'support' } }],
+      };
+      database.logins.findUnique.mockResolvedValue(expected);
+
+      const result = await repository.findAssignedAreasById(loginId);
+
+      expect(result).toBe(expected);
+    });
+
+    it('should delegate Prisma errors to errorHandler and return undefined when handler swallows', async () => {
+      const error = new Error('prisma');
+      database.logins.findUnique.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.findAssignedAreasById(loginId);
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
     });
   });
 });

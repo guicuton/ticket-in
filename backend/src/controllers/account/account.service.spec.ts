@@ -1,12 +1,20 @@
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { IAuthPutPasswordDTO } from './account.dto';
+import {
+  IAccountMessagesListQueryDTO,
+  IAccountTicketsListQueryDTO,
+  IAuthPutPasswordDTO,
+} from './account.dto';
 import { AuthenticationControllerService } from './account.service';
-import { Logger } from '@nestjs/common';
+import { AccountControllerService } from './account.service';
+import { ForbiddenException, Logger } from '@nestjs/common';
 import {
   AccountService,
+  IAccountAreaItemListPromise,
   IAccountCreateParams,
   IAccountCreatePromise,
+  IAccountMessageListWithPaginationPromise,
+  IAccountTicketListWithPaginationPromise,
 } from '../../../libs/account/src';
 import { IAuthenticatedAccount } from '../../../libs/auth/src';
 
@@ -176,6 +184,228 @@ describe('AuthenticationControllerService', () => {
         ...userUpdateBody,
       });
       expect(logger.log).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('AccountControllerService (relations endpoints)', () => {
+  let controllerService: AccountControllerService;
+  let accountService: jest.Mocked<AccountService>;
+
+  const ownerId = '00000000-0000-0000-0000-000000000010';
+  const strangerId = '00000000-0000-0000-0000-000000000020';
+
+  const ownerAccount: IAuthenticatedAccount = {
+    id: ownerId,
+    username: 'owner',
+    role: 'USER',
+  };
+  const adminAccount: IAuthenticatedAccount = {
+    id: '00000000-0000-0000-0000-000000000099',
+    username: 'admin',
+    role: 'ADMIN',
+  };
+  const masterAccount: IAuthenticatedAccount = {
+    id: '00000000-0000-0000-0000-000000000098',
+    username: 'master',
+    role: 'MASTER',
+  };
+  const strangerAccount: IAuthenticatedAccount = {
+    id: strangerId,
+    username: 'stranger',
+    role: 'USER',
+  };
+
+  const ticketsQuery: IAccountTicketsListQueryDTO = {
+    relation: 'requester',
+    per_page: 10,
+    offset: 0,
+    sort: 'created_at',
+  };
+
+  const messagesQuery: IAccountMessagesListQueryDTO = {
+    per_page: 10,
+    offset: 0,
+    sort: 'created_at',
+  };
+
+  const paginatedTickets: IAccountTicketListWithPaginationPromise = {
+    data: [],
+    meta: {
+      count: 0,
+      totalOfPages: 0,
+      first: { page: 1, offset: 0, isCurrent: true },
+      last: { page: 1, offset: 0, isCurrent: true },
+      previous: { page: 1, offset: 0, isCurrent: true },
+      around: [],
+      next: { page: 1, offset: 0, isCurrent: true },
+    },
+  };
+
+  const paginatedMessages: IAccountMessageListWithPaginationPromise = {
+    ...paginatedTickets,
+    data: [],
+  };
+
+  const areas: IAccountAreaItemListPromise[] = [];
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AccountControllerService,
+        {
+          provide: AccountService,
+          useValue: {
+            findTicketsWithPagination: jest.fn(),
+            findMessagesWithPagination: jest.fn(),
+            findAssignedAreas: jest.fn(),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            signAsync: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    controllerService = module.get<AccountControllerService>(
+      AccountControllerService,
+    );
+    accountService = module.get(AccountService);
+  });
+
+  describe('access scope', () => {
+    it('allows the owner to read their own tickets', async () => {
+      accountService.findTicketsWithPagination.mockResolvedValue(
+        paginatedTickets,
+      );
+
+      await expect(
+        controllerService.findTicketsWithPagination({
+          account: ownerAccount,
+          login_id: ownerId,
+          query: ticketsQuery,
+        }),
+      ).resolves.toEqual(paginatedTickets);
+    });
+
+    it('allows ADMIN to read another account tickets', async () => {
+      accountService.findTicketsWithPagination.mockResolvedValue(
+        paginatedTickets,
+      );
+
+      await expect(
+        controllerService.findTicketsWithPagination({
+          account: adminAccount,
+          login_id: ownerId,
+          query: ticketsQuery,
+        }),
+      ).resolves.toEqual(paginatedTickets);
+    });
+
+    it('allows MASTER to read another account tickets', async () => {
+      accountService.findTicketsWithPagination.mockResolvedValue(
+        paginatedTickets,
+      );
+
+      await expect(
+        controllerService.findTicketsWithPagination({
+          account: masterAccount,
+          login_id: ownerId,
+          query: ticketsQuery,
+        }),
+      ).resolves.toEqual(paginatedTickets);
+    });
+
+    it('rejects a different USER with ForbiddenException', async () => {
+      await expect(
+        controllerService.findTicketsWithPagination({
+          account: strangerAccount,
+          login_id: ownerId,
+          query: ticketsQuery,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(accountService.findTicketsWithPagination).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findTicketsWithPagination', () => {
+    it('delegates to accountService.findTicketsWithPagination with login_id and query', async () => {
+      accountService.findTicketsWithPagination.mockResolvedValue(
+        paginatedTickets,
+      );
+
+      const result = await controllerService.findTicketsWithPagination({
+        account: ownerAccount,
+        login_id: ownerId,
+        query: ticketsQuery,
+      });
+
+      expect(accountService.findTicketsWithPagination).toHaveBeenCalledWith({
+        login_id: ownerId,
+        ...ticketsQuery,
+      });
+      expect(result).toBe(paginatedTickets);
+    });
+  });
+
+  describe('findMessagesWithPagination', () => {
+    it('delegates to accountService.findMessagesWithPagination with login_id and query', async () => {
+      accountService.findMessagesWithPagination.mockResolvedValue(
+        paginatedMessages,
+      );
+
+      const result = await controllerService.findMessagesWithPagination({
+        account: ownerAccount,
+        login_id: ownerId,
+        query: messagesQuery,
+      });
+
+      expect(accountService.findMessagesWithPagination).toHaveBeenCalledWith({
+        login_id: ownerId,
+        ...messagesQuery,
+      });
+      expect(result).toBe(paginatedMessages);
+    });
+
+    it('rejects a different USER with ForbiddenException', async () => {
+      await expect(
+        controllerService.findMessagesWithPagination({
+          account: strangerAccount,
+          login_id: ownerId,
+          query: messagesQuery,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(accountService.findMessagesWithPagination).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAssignedAreas', () => {
+    it('delegates to accountService.findAssignedAreas with login_id', async () => {
+      accountService.findAssignedAreas.mockResolvedValue(areas);
+
+      const result = await controllerService.findAssignedAreas({
+        account: ownerAccount,
+        login_id: ownerId,
+      });
+
+      expect(accountService.findAssignedAreas).toHaveBeenCalledWith(ownerId);
+      expect(result).toBe(areas);
+    });
+
+    it('rejects a different USER with ForbiddenException', async () => {
+      await expect(
+        controllerService.findAssignedAreas({
+          account: strangerAccount,
+          login_id: ownerId,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(accountService.findAssignedAreas).not.toHaveBeenCalled();
     });
   });
 });
