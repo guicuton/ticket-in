@@ -164,6 +164,24 @@ describe('AreasService', () => {
       expect(cache.set).not.toHaveBeenCalled();
       expect(result).toEqual([]);
     });
+
+    it('should cache an empty list when the area exists but has no members', async () => {
+      cache.get.mockResolvedValue(undefined);
+      repository.findAccountsById.mockResolvedValue({ logins: [] });
+
+      const result = await service.findAccountsByAreaId({
+        area_id,
+        sort: 'username',
+      });
+
+      expect(cache.set).toHaveBeenCalledWith({
+        key: 'areas:accounts',
+        item: `${area_id}:username`,
+        data: [],
+        ttl: CACHE_TTL.ten,
+      });
+      expect(result).toEqual([]);
+    });
   });
 
   describe('findTicketsByAreaId', () => {
