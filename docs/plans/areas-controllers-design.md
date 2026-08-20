@@ -195,11 +195,19 @@ the class with a nested `describe` per method, `jest.mock('prisma-offset-paginat
 in repository specs, plain mocks for cache and repositories in the domain
 spec, delegation-plus-error-propagation in the controller specs.
 
-Baseline before any change is red and stays that way: **7 suites / 31 tests
-failing out of 99**, all stale specs from earlier renames (`LoginRepository`,
+Baseline before any change is red: **7 suites / 31 tests failing out of 99**,
+all stale specs from earlier renames (`LoginRepository`,
 `AuthenticationControllerService`, `AccountController.update`,
 `DatabaseService`, `AuthStrategyJwt`, `AccountService`). They are out of
-scope; the same counts must hold at the end, plus the new passing specs.
+scope and stay failing, with one deliberate exception.
+
+**The exception:** `libs/database/src/repositories/logins/repository.spec.ts`
+is stale in a purely mechanical way — it imports `LoginRepository` and mocks
+`database.login` where the code now has `LoginsRepository` and
+`database.logins`. `findManyRolesByIds` belongs in that class and therefore in
+that spec, so the file gets the rename applied (6 identifiers) as part of the
+task that adds the method. Its 6 existing tests go green as a side effect.
+Nothing else in the file changes, and no other stale spec is touched.
 
 ## Non-goals
 
