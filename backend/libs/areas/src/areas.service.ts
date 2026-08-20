@@ -184,5 +184,6 @@ export class AreasService {
   private async invalidateCache(): Promise<void> {
     await this.cache.deleteCollection('areas:*');
     await this.cache.deleteCollection('account:areas:*');
+    await this.cache.deleteCollection('tickets:detail:*');
   }
 }

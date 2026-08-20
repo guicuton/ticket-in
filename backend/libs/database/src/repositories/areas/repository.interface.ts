@@ -47,3 +47,7 @@ export interface IAreasUpdateOneParams {
 export interface IAreasUpdateOnePromise {
   id: string;
 }
+
+export interface IAreasFindOneByIdPromise {
+  id: string;
+}

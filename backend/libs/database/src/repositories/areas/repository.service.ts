@@ -12,6 +12,7 @@ import {
   IAreasFindManyWithPaginationParams,
   IAreasUpdateOneParams,
   IAreasUpdateOnePromise,
+  IAreasFindOneByIdPromise,
 } from './repository.interface';
 
 @Injectable()
@@ -75,6 +76,17 @@ export class AreasRepository {
             },
           },
         },
+      })
+      .catch((err) => this.repository.errorHandler(err));
+
+    if (promise) return promise;
+  }
+
+  async findOneById(id: string): Promise<IAreasFindOneByIdPromise | void> {
+    const promise = await this.repository.areas
+      .findUnique({
+        where: { id },
+        select: { id: true },
       })
       .catch((err) => this.repository.errorHandler(err));
 

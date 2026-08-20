@@ -266,4 +266,37 @@ describe('AreasRepository', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe('findOneById', () => {
+    const areaId = '019538c4-2f7a-7c31-9c1b-000000000002';
+
+    it('should select only the id', async () => {
+      database.areas.findUnique.mockResolvedValue({ id: areaId });
+
+      const result = await repository.findOneById(areaId);
+
+      expect(database.areas.findUnique).toHaveBeenCalledWith({
+        where: { id: areaId },
+        select: { id: true },
+      });
+      expect(result).toEqual({ id: areaId });
+    });
+
+    it('should return undefined for an unknown area', async () => {
+      database.areas.findUnique.mockResolvedValue(null);
+
+      await expect(repository.findOneById(areaId)).resolves.toBeUndefined();
+    });
+
+    it('should delegate errors to errorHandler', async () => {
+      const error = new Error('prisma');
+      database.areas.findUnique.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.findOneById(areaId);
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
+    });
+  });
 });

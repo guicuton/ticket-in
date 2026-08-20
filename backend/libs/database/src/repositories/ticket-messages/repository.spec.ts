@@ -104,4 +104,50 @@ describe('TicketMessagesRepository', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe('findManyByTicketId', () => {
+    const ticketId = '019538c4-2f7a-7c31-9c1b-000000000001';
+
+    it('should read the whole thread newest first', async () => {
+      const expected = [{ id: 'a' }, { id: 'b' }];
+      database.ticket_messages.findMany.mockResolvedValue(expected);
+
+      const result = await repository.findManyByTicketId({
+        ticket_id: ticketId,
+      });
+
+      expect(database.ticket_messages.findMany).toHaveBeenCalledWith({
+        where: { ticket_id: ticketId },
+        select: {
+          id: true,
+          message: true,
+          created_at: true,
+          login: { select: { id: true, username: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      });
+      expect(result).toBe(expected);
+    });
+
+    it('should return the empty array unchanged when the thread is empty', async () => {
+      database.ticket_messages.findMany.mockResolvedValue([]);
+
+      await expect(
+        repository.findManyByTicketId({ ticket_id: ticketId }),
+      ).resolves.toEqual([]);
+    });
+
+    it('should delegate errors to errorHandler', async () => {
+      const error = new Error('prisma');
+      database.ticket_messages.findMany.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.findManyByTicketId({
+        ticket_id: ticketId,
+      });
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
+    });
+  });
 });
