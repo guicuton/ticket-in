@@ -77,13 +77,16 @@ describe('TicketsRepository', () => {
       );
     });
 
-    it('should return undefined when no records are found', async () => {
+    it('should return a well-formed empty page when no records are found', async () => {
       database.tickets.count.mockResolvedValue(0);
       database.tickets.findMany.mockResolvedValue([]);
 
       const result = await repository.findManyWithPagination(params);
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({
+        data: [],
+        meta: { count: 0, totalOfPages: 0, around: [] },
+      });
     });
 
     it('should delegate Prisma errors to errorHandler and return undefined when handler swallows', async () => {

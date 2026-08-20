@@ -12,6 +12,7 @@ import {
   IsString,
   IsUUID,
   Matches,
+  Min,
   MinLength,
 } from 'class-validator';
 import { PAGINATION_OPTIONS } from '../../../configuration/constants';
@@ -235,6 +236,7 @@ export class IAccountTicketsListQueryDTO {
   })
   @IsOptional()
   @IsInt()
+  @Min(0)
   @Type(() => Number)
   offset?: number;
 
@@ -287,6 +289,7 @@ export class IAccountMessagesListQueryDTO {
   })
   @IsOptional()
   @IsInt()
+  @Min(0)
   @Type(() => Number)
   offset?: number;
 

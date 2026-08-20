@@ -226,9 +226,9 @@ export class AccountService {
     const repositoryResult =
       await this.repository.findAssignedAreasById(login_id);
 
-    const areas: IAccountAreaItemListPromise[] = repositoryResult
-      ? repositoryResult.assigned_areas.map((item) => item.areas)
-      : [];
+    if (!repositoryResult) return [];
+
+    const areas = repositoryResult.assigned_areas.map((item) => item.areas);
 
     await this.cache.set({
       key: cacheKey,

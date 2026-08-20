@@ -162,6 +162,10 @@ export class AccountController {
     description: 'Tickets list.',
   })
   @ApiResponse({
+    status: 400,
+    description: 'Validation failed for the request params/query.',
+  })
+  @ApiResponse({
     status: 401,
     description: 'Missing/invalid token.',
   })
@@ -194,6 +198,10 @@ export class AccountController {
     description: 'Messages list.',
   })
   @ApiResponse({
+    status: 400,
+    description: 'Validation failed for the request params/query.',
+  })
+  @ApiResponse({
     status: 401,
     description: 'Missing/invalid token.',
   })
@@ -223,6 +231,10 @@ export class AccountController {
   @ApiResponse({
     status: 200,
     description: 'Assigned areas list.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed for the request params.',
   })
   @ApiResponse({
     status: 401,

@@ -4,6 +4,7 @@ import { ITicketMessagesFindManyWithPaginationParams } from './repository.interf
 import { offsetPaginator } from 'prisma-offset-paginator';
 import { PAGINATION_OPTIONS } from '../../../../../configuration/constants';
 import { TPaginationData } from 'prisma-offset-paginator/dist/interfaces';
+import { emptyPaginationData } from '../pagination';
 
 @Injectable()
 export class TicketMessagesRepository {
@@ -14,17 +15,21 @@ export class TicketMessagesRepository {
   ): Promise<TPaginationData | void> {
     const { sort, ...prismaParams } = params;
 
-    const promise = await offsetPaginator({
-      instance: this.repository,
-      entity: 'ticket_messages',
-      offset: prismaParams.offset,
-      per_page: prismaParams.per_page,
-      bottom: PAGINATION_OPTIONS.aroundRange,
-      orderBy: sort.column,
-      orderDirection: sort.direction,
-      where: prismaParams.where,
-    }).catch((err) => this.repository.errorHandler(err));
+    try {
+      const promise = await offsetPaginator({
+        instance: this.repository,
+        entity: 'ticket_messages',
+        offset: prismaParams.offset,
+        per_page: prismaParams.per_page,
+        bottom: PAGINATION_OPTIONS.aroundRange,
+        orderBy: sort.column,
+        orderDirection: sort.direction,
+        where: prismaParams.where,
+      });
 
-    if (promise) return promise;
+      return promise ?? emptyPaginationData();
+    } catch (err) {
+      this.repository.errorHandler(err as Error);
+    }
   }
 }

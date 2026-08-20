@@ -445,9 +445,21 @@ describe('AccountService - tickets, messages and areas', () => {
       ]);
     });
 
-    it('should return an empty array and cache it when the repository returns void (login not found)', async () => {
+    it('should return an empty array without caching when the repository returns void (not found or swallowed error)', async () => {
       cache.get.mockResolvedValue(undefined);
       loginsRepository.findAssignedAreasById.mockResolvedValue(undefined);
+
+      const result = await service.findAssignedAreas(loginId);
+
+      expect(cache.set).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
+    });
+
+    it('should cache and return an empty array when the login genuinely has zero areas', async () => {
+      cache.get.mockResolvedValue(undefined);
+      loginsRepository.findAssignedAreasById.mockResolvedValue({
+        assigned_areas: [],
+      });
 
       const result = await service.findAssignedAreas(loginId);
 
