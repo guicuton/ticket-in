@@ -19,6 +19,7 @@
 - **Never edit `schema.prisma` and never create a migration.** Every index this plan relies on already exists.
 - **Every UUID literal — DTO `example` values and test fixtures alike — uses the pattern `019538c4-2f7a-7c31-9c1b-<12 digits>`.** A zero-filled placeholder fails `@IsUUID()` because its version nibble is `0`.
 - **Do not touch the six failing suites inherited from `main`**: `libs/account/src/account.service.spec.ts`, `libs/auth/src/strategies/jwt.strategy.spec.ts`, `libs/auth/src/strategies/local.strategy.spec.ts`, `libs/database/src/database.service.spec.ts`, `src/controllers/account/account.controller.spec.ts`, `src/controllers/account/account.service.spec.ts`. Baseline is **25 failing of 159 tests, 6 failing suites, 18 `tsc` errors**. Your task is judged on not making those numbers worse and on your own new tests passing.
+- **Never delete or rewrite an existing test.** Several spec files this plan touches already exist and already pass. Before writing any spec file, check whether it is there — if it is, APPEND a `describe` block and merge your mocks into its existing `beforeEach`. A task that ends with fewer tests in a file than it started with has failed, whatever the plan text says.
 - All commands run from `backend/`. Run tests scoped to your own files: `npx jest <path>`.
 - Type-check with `npx tsc --noEmit -p tsconfig.json`. Count errors with `| grep -c 'error TS'` and compare against 18.
 
@@ -422,7 +423,8 @@ MSG
 - Modify: `backend/libs/database/src/repositories/ticket-messages/repository.service.ts`
 - Modify: `backend/libs/database/src/repositories/areas/repository.interface.ts`
 - Modify: `backend/libs/database/src/repositories/areas/repository.service.ts`
-- Test: `backend/libs/database/src/repositories/ticket-messages/repository.spec.ts` (create)
+- Test: `backend/libs/database/src/repositories/ticket-messages/repository.spec.ts` (**extend — this file already exists and its tests pass; append a `describe` block, never rewrite the file**)
+- Test: `backend/libs/database/src/repositories/areas/repository.spec.ts` (**extend — same warning**)
 
 **Interfaces:**
 - Consumes: `DatabaseService`.
@@ -430,42 +432,14 @@ MSG
 
 - [ ] **Step 1: Write the failing test**
 
-Create `backend/libs/database/src/repositories/ticket-messages/repository.spec.ts`:
+`backend/libs/database/src/repositories/ticket-messages/repository.spec.ts` **already exists and its tests pass.** Open it, read its existing `beforeEach`, and APPEND to it. Do not recreate the file and do not delete a single existing test.
+
+Two edits to that file:
+
+1. Add `findMany: jest.fn()` to the `ticket_messages` mock object if it is not already there, and add the matching `findMany: jest.Mock` to the `database` variable's type annotation. Leave every other mock key in place.
+2. Add this `describe` block inside the existing top-level `describe('TicketMessagesRepository', ...)`, after the blocks already there. Reuse whatever fixture ids the file already defines; if it has no ticket id constant, add `const ticketId = '019538c4-2f7a-7c31-9c1b-000000000001';` alongside the existing ones.
 
 ```ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { DatabaseService } from '../../database.service';
-import { TicketMessagesRepository } from './repository.service';
-
-describe('TicketMessagesRepository', () => {
-  let repository: TicketMessagesRepository;
-  let database: {
-    ticket_messages: { findMany: jest.Mock };
-    errorHandler: jest.Mock;
-  };
-
-  const ticketId = '019538c4-2f7a-7c31-9c1b-000000000001';
-
-  beforeEach(async () => {
-    database = {
-      ticket_messages: { findMany: jest.fn() },
-      errorHandler: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TicketMessagesRepository,
-        { provide: DatabaseService, useValue: database },
-      ],
-    }).compile();
-
-    repository = module.get(TicketMessagesRepository);
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('findManyByTicketId', () => {
     it('should read the whole thread newest first', async () => {
       const expected = [{ id: 'a' }, { id: 'b' }];
@@ -509,7 +483,6 @@ describe('TicketMessagesRepository', () => {
       expect(result).toBeUndefined();
     });
   });
-});
 ```
 
 Note on the second test: an empty thread must come back as `[]`, not `undefined`. Guarding with `if (promise)` would turn `[]` falsy-adjacent handling into a bug — `[]` is truthy in JS, so `if (promise) return promise;` is correct here, and this test locks that in.
@@ -589,10 +562,45 @@ Add to `AreasRepository` in `backend/libs/database/src/repositories/areas/reposi
   }
 ```
 
+`backend/libs/database/src/repositories/areas/repository.spec.ts` **already exists and its tests pass.** Append this `describe` block inside its existing top-level `describe`, and add `findUnique: jest.fn()` to its `areas` mock (plus the matching type annotation entry) if it is not already there. Reuse the file's existing area id constant; the name below assumes `areaId`, so rename to match whatever the file already declares.
+
+```ts
+  describe('findOneById', () => {
+    it('should select only the id', async () => {
+      database.areas.findUnique.mockResolvedValue({ id: areaId });
+
+      const result = await repository.findOneById(areaId);
+
+      expect(database.areas.findUnique).toHaveBeenCalledWith({
+        where: { id: areaId },
+        select: { id: true },
+      });
+      expect(result).toEqual({ id: areaId });
+    });
+
+    it('should return undefined for an unknown area', async () => {
+      database.areas.findUnique.mockResolvedValue(null);
+
+      await expect(repository.findOneById(areaId)).resolves.toBeUndefined();
+    });
+
+    it('should delegate errors to errorHandler', async () => {
+      const error = new Error('prisma');
+      database.areas.findUnique.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.findOneById(areaId);
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
+    });
+  });
+```
+
 - [ ] **Step 5: Run the tests and the type-check**
 
 Run: `npx jest libs/database/src/repositories/`
-Expected: PASS — the new ticket-messages suite (3 tests), plus Task 1's tickets suite and the pre-existing logins and areas suites, all green.
+Expected: PASS on every suite — the ticket-messages suite grows by 3 tests, the areas suite by 3, and Task 1's tickets suite plus the logins suite stay green. No suite loses a test.
 
 Run: `npx tsc --noEmit -p tsconfig.json 2>&1 | grep -c 'error TS'`
 Expected: `18`.
