@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseService } from '../../database.service';
-import { LoginRepository, LoginsRepository } from './repository.service';
+import { LoginsRepository } from './repository.service';
 
-describe('LoginRepository', () => {
-  let repository: LoginRepository;
+describe('LoginsRepository', () => {
+  let repository: LoginsRepository;
   let database: {
-    login: {
+    logins: {
       create: jest.Mock;
       findUnique: jest.Mock;
       findFirst: jest.Mock;
@@ -18,7 +18,7 @@ describe('LoginRepository', () => {
 
   beforeEach(async () => {
     database = {
-      login: {
+      logins: {
         create: jest.fn(),
         findUnique: jest.fn(),
         findFirst: jest.fn(),
@@ -29,12 +29,12 @@ describe('LoginRepository', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LoginRepository,
+        LoginsRepository,
         { provide: DatabaseService, useValue: database },
       ],
     }).compile();
 
-    repository = module.get(LoginRepository);
+    repository = module.get(LoginsRepository);
   });
 
   it('should be defined', () => {
@@ -51,11 +51,11 @@ describe('LoginRepository', () => {
 
     it('should call login.create with the params and return the created row', async () => {
       const expected = { id: loginId };
-      database.login.create.mockResolvedValue(expected);
+      database.logins.create.mockResolvedValue(expected);
 
       const result = await repository.createOne(params);
 
-      expect(database.login.create).toHaveBeenCalledWith({
+      expect(database.logins.create).toHaveBeenCalledWith({
         data: params,
         select: { id: true },
       });
@@ -64,7 +64,7 @@ describe('LoginRepository', () => {
 
     it('should delegate Prisma errors to errorHandler and return undefined when handler swallows', async () => {
       const error = new Error('prisma');
-      database.login.create.mockRejectedValue(error);
+      database.logins.create.mockRejectedValue(error);
       database.errorHandler.mockReturnValue(undefined);
 
       const result = await repository.createOne(params);
@@ -77,11 +77,11 @@ describe('LoginRepository', () => {
   describe('findOneById', () => {
     it('should call login.findUnique with the id and return the row', async () => {
       const expected = { id: loginId, password: 'hash' };
-      database.login.findUnique.mockResolvedValue(expected);
+      database.logins.findUnique.mockResolvedValue(expected);
 
       const result = await repository.findOneById(loginId);
 
-      expect(database.login.findUnique).toHaveBeenCalledWith({
+      expect(database.logins.findUnique).toHaveBeenCalledWith({
         where: { id: loginId },
         select: { id: true, password: true },
       });
@@ -93,11 +93,11 @@ describe('LoginRepository', () => {
     it('should call login.findFirst with the params and return the row', async () => {
       const params = { username: 'admin' };
       const expected = { id: loginId, password: 'hash' };
-      database.login.findFirst.mockResolvedValue(expected);
+      database.logins.findFirst.mockResolvedValue(expected);
 
       const result = await repository.findOneByUsernameOrEmail(params);
 
-      expect(database.login.findFirst).toHaveBeenCalledWith({
+      expect(database.logins.findFirst).toHaveBeenCalledWith({
         where: params,
         select: { id: true, password: true },
       });
@@ -108,14 +108,14 @@ describe('LoginRepository', () => {
   describe('updatePasswordById', () => {
     it('should call login.update with the new hash and where id', async () => {
       const expected = { id: loginId };
-      database.login.update.mockResolvedValue(expected);
+      database.logins.update.mockResolvedValue(expected);
 
       const result = await repository.updatePasswordById({
         loginId,
         passwordHash: 'new-hash',
       });
 
-      expect(database.login.update).toHaveBeenCalledWith({
+      expect(database.logins.update).toHaveBeenCalledWith({
         data: { password: 'new-hash' },
         where: { id: loginId },
         select: { id: true },
