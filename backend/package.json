@@ -114,7 +114,8 @@
       "^@app/areas(|/.*)$": "<rootDir>/libs/areas/src/$1",
       "^@app/auth(|/.*)$": "<rootDir>/libs/auth/src/$1",
       "^@app/cache(|/.*)$": "<rootDir>/libs/cache/src/$1",
-      "^@app/database(|/.*)$": "<rootDir>/libs/database/src/$1"
+      "^@app/database(|/.*)$": "<rootDir>/libs/database/src/$1",
+      "^@app/tickets(|/.*)$": "<rootDir>/libs/tickets/src/$1"
     }
   }
 }
