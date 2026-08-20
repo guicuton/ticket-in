@@ -130,6 +130,7 @@ describe('LoginsRepository', () => {
   let database: {
     logins: {
       findUnique: jest.Mock;
+      findMany: jest.Mock;
     };
     errorHandler: jest.Mock;
   };
@@ -140,6 +141,7 @@ describe('LoginsRepository', () => {
     database = {
       logins: {
         findUnique: jest.fn(),
+        findMany: jest.fn(),
       },
       errorHandler: jest.fn(),
     };
@@ -197,6 +199,39 @@ describe('LoginsRepository', () => {
       database.errorHandler.mockReturnValue(undefined);
 
       const result = await repository.findAssignedAreasById(loginId);
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('findManyRolesByIds', () => {
+    const ids = ['login-a', 'login-b'];
+
+    it('should call logins.findMany with the ids and select only id and role', async () => {
+      const expected = [
+        { id: 'login-a', role: 'ADMIN' },
+        { id: 'login-b', role: 'MASTER' },
+      ];
+
+      database.logins.findMany.mockResolvedValue(expected);
+
+      const result = await repository.findManyRolesByIds(ids);
+
+      expect(database.logins.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ids } },
+        select: { id: true, role: true },
+      });
+      expect(result).toEqual(expected);
+    });
+
+    it('should delegate Prisma errors to errorHandler and return undefined when handler swallows', async () => {
+      const error = new Error('prisma');
+
+      database.logins.findMany.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.findManyRolesByIds(ids);
 
       expect(database.errorHandler).toHaveBeenCalledWith(error);
       expect(result).toBeUndefined();

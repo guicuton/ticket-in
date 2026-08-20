@@ -7,6 +7,7 @@ import {
   ILoginsFindAssignedAreasPromise,
   ILoginsFindFirstParams,
   ILoginsFindFirstPromise,
+  ILoginsFindRolesByIdsPromise,
   ILoginsUpdatePasswordParams,
   ILoginsUpdatePasswordPromise,
 } from './repository.interface';
@@ -131,6 +132,22 @@ export class LoginsRepository {
               },
             },
           },
+        },
+      })
+      .catch((err) => this.repository.errorHandler(err));
+
+    if (promise) return promise;
+  }
+
+  async findManyRolesByIds(
+    ids: string[],
+  ): Promise<ILoginsFindRolesByIdsPromise[] | void> {
+    const promise = await this.repository.logins
+      .findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true,
+          role: true,
         },
       })
       .catch((err) => this.repository.errorHandler(err));
