@@ -7,3 +7,9 @@ export const CACHE_TTL = {
   hour: 60 * 60, // 1 hour
   day: 60 * 60 * 24, // 1day
 };
+
+export const PAGINATION_OPTIONS = {
+  aroundRange: 4,
+  perPage: [10, 30, 100, 300, 1000],
+  compare: ['lte', 'gte', 'lt', 'gt'],
+};

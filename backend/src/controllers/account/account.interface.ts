@@ -1,4 +1,5 @@
 import { IAuthenticatedAccount } from '@app/auth';
+import { LOGIN_ROLES } from '@app/database';
 import { IAccountCreateDTO, IAuthPutPasswordDTO } from './account.dto';
 
 export interface IAuthLoginParams {
@@ -22,6 +23,19 @@ export interface IAccountCreateParams {
   body: IAccountCreateDTO;
 }
 
-export interface IAccountCreatePromise {
+export interface IAccountItemListPromise {
   id: string;
+  username: string;
+  password: string;
+  email: string;
+  role: keyof typeof LOGIN_ROLES;
+  is_deleted: boolean;
+  created_at: Date;
+  updated_at: Date;
+  _count: {
+    assigned_areas: number;
+    tickets_messages: number;
+    tickets_requester: number;
+    tickets_responser: number;
+  };
 }

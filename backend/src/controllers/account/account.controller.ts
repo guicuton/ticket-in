@@ -1,24 +1,40 @@
+import {
+  IAccountCreatePromise,
+  IAccountListWithPaginationPromise,
+} from '@app/account';
 import type { IAuthenticatedAccount } from '@app/auth';
-import { JwtAuthGuard, LocalAuthGuard, RoleGuard } from '@app/auth';
-import { Body, Controller, Ip, Post, Put, UseGuards } from '@nestjs/common';
+import { LocalAuthGuard } from '@app/auth';
+import { LOGIN_ROLES } from '@app/database';
+import {
+  Body,
+  Controller,
+  Get,
+  Ip,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiExtraModels,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Account } from '../../../decorators/account.decorator';
+import { Public } from '../../../decorators/public.decorator';
+import { Roles } from '../../../decorators/roles.decorator';
 import {
   IAccountCreateDTO,
+  IAccountsListQueryDTO,
   IAuthLoginDTO,
   IAuthLoginResponseDTO,
   IAuthPutPasswordDTO,
 } from './account.dto';
-import { IAccountCreatePromise, IAuthLoginPromise } from './account.interface';
+import { IAuthLoginPromise } from './account.interface';
 import { AccountControllerService } from './account.service';
-import { Roles } from '../../../decorators/roles.decorator';
-import { LOGIN_ROLES } from '@app/database';
 
 @ApiTags('Accounts')
 @Controller('accounts')
@@ -37,6 +53,7 @@ export class AccountController {
     type: IAuthLoginResponseDTO,
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
+  @Public()
   @UseGuards(LocalAuthGuard)
   @Post('authentication')
   async login(
@@ -65,7 +82,6 @@ export class AccountController {
     description: 'Missing/invalid token or wrong current password.',
   })
   @Roles(LOGIN_ROLES.ADMIN)
-  @UseGuards(JwtAuthGuard, RoleGuard)
   @Post('create')
   async register(
     @Account() account: IAuthenticatedAccount,
@@ -95,17 +111,35 @@ export class AccountController {
     status: 401,
     description: 'Missing/invalid token or wrong current password.',
   })
-  @UseGuards(JwtAuthGuard)
   @Put('password')
   async update(
     @Account() account: IAuthenticatedAccount,
     @Ip() ip: string,
     @Body() body: IAuthPutPasswordDTO,
   ): Promise<void> {
-    return await this.controllerService.update({
+    await this.controllerService.update({
       body,
       ip,
       account,
     });
+  }
+
+  @ApiOperation({
+    summary: 'Get users list',
+    description: 'Return list of all users with pagination',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiExtraModels(IAccountsListQueryDTO)
+  @ApiResponse({
+    status: 200,
+    description: 'Users list.',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @Roles(LOGIN_ROLES.ADMIN, LOGIN_ROLES.MASTER)
+  @Get('list')
+  async list(
+    @Query() query: IAccountsListQueryDTO,
+  ): Promise<IAccountListWithPaginationPromise> {
+    return await this.controllerService.findAllWithPagination(query);
   }
 }

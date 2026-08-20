@@ -4,6 +4,16 @@ export const LOGIN_ROLES = {
   USER: 'USER',
 } as const;
 
+export interface ILoginsFindAllWithPaginationParams<Args> {
+  where: Args;
+  offset?: number;
+  per_page: number;
+  sort: {
+    column: string;
+    direction: 'asc' | 'desc';
+  };
+}
+
 export interface ILoginsFindFirstParams {
   username?: string;
   email?: string;

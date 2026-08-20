@@ -1,14 +1,104 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { IAccountCreatePromise } from '@app/account';
+import { LOGIN_ROLES } from '@app/database';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
   IsEmail,
   IsIn,
+  IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MinLength,
 } from 'class-validator';
-import { IAccountCreatePromise, IAuthLoginPromise } from './account.interface';
-import { LOGIN_ROLES } from '../../../libs/database/src';
+import { PAGINATION_OPTIONS } from '../../../configuration/constants';
+import { IAuthLoginPromise } from './account.interface';
+
+export class IAccountsListQueryDTO {
+  @ApiPropertyOptional({
+    description: 'Set the offset page for pagination',
+    example: '0',
+    type: 'number',
+  })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  offset?: number;
+
+  @ApiProperty({
+    description: 'Items per page',
+    example: '10',
+    type: 'number',
+  })
+  @IsIn(PAGINATION_OPTIONS.perPage)
+  @IsInt()
+  @IsNotEmpty()
+  @Type(() => Number)
+  per_page: number;
+
+  @ApiProperty({
+    description: 'Column sorter',
+    example: 'username',
+    type: 'string',
+    enum: [
+      'username',
+      '-username',
+      'email',
+      '-email',
+      'role',
+      '-role',
+      'created_at',
+      '-created_at',
+    ],
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn([
+    'username',
+    '-username',
+    'email',
+    '-email',
+    'role',
+    '-role',
+    'created_at',
+    '-created_at',
+  ])
+  sort: string;
+
+  @ApiProperty({
+    description: 'User email',
+    example: 'test@test.com',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({
+    description: 'Roles filter',
+    example: 'USER',
+    type: 'array',
+    enum: LOGIN_ROLES,
+  })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @IsIn(Object.keys(LOGIN_ROLES), { each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value.filter((item: string) => item.trim() !== '');
+    }
+
+    if (typeof value === 'string') {
+      return [value.trim()];
+    }
+    return [];
+  })
+  role?: string[];
+}
 
 export class IAuthLoginDTO {
   @ApiProperty({

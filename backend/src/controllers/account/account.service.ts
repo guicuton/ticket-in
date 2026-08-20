@@ -1,13 +1,17 @@
-import { AccountService } from '@app/account';
+import {
+  AccountService,
+  IAccountCreatePromise,
+  IAccountListWithPaginationPromise,
+} from '@app/account';
 import { IAuthenticatedAccount } from '@app/auth';
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   IAccountCreateParams,
-  IAccountCreatePromise,
   IAuthLoginPasswordUpdateParams,
   IAuthLoginPromise,
 } from './account.interface';
+import { IAccountsListQueryDTO } from './account.dto';
 
 @Injectable()
 export class AccountControllerService {
@@ -17,6 +21,14 @@ export class AccountControllerService {
     private readonly accountService: AccountService,
     private readonly jwtService: JwtService,
   ) {}
+
+  async findAllWithPagination(
+    query: IAccountsListQueryDTO,
+  ): Promise<IAccountListWithPaginationPromise> {
+    return await this.accountService.findManyWithPagination({
+      ...query,
+    });
+  }
 
   async login(
     params: IAuthenticatedAccount,

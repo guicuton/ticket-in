@@ -1,16 +1,25 @@
 import { CacheModuleServices } from '@app/cache';
 import { ILoginsUpdatePasswordPromise, LoginsRepository } from '@app/database';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { CACHE_TTL } from '../../../configuration/constants';
+import { IAccountsListQueryDTO } from '../../../src/controllers/account/account.dto';
+import { parseSort } from '../../../utils/parse-sort';
+import { Prisma } from '../../database/prisma/generated/client';
+import { LOGIN_ROLE } from '../../database/prisma/generated/enums';
 import {
   IAccountCreateParams,
   IAccountCreatePromise,
+  IAccountListWithPaginationPromise,
   IAccountUpdatePasswordParams,
   IAccountValidateLoginParams,
   IAccountValidateLoginPromise,
   IAccountValidatePasswordParams,
 } from './account.interface';
-import { CACHE_TTL } from '../../../configuration/constants';
 
 @Injectable()
 export class AccountService {
@@ -18,6 +27,42 @@ export class AccountService {
     private readonly cache: CacheModuleServices,
     private readonly repository: LoginsRepository,
   ) {}
+
+  async findManyWithPagination(
+    params: IAccountsListQueryDTO,
+  ): Promise<IAccountListWithPaginationPromise> {
+    const { per_page, offset, role, email } = params;
+    const parsedRoles: Array<keyof typeof LOGIN_ROLE> = [];
+    const sort = parseSort(params.sort);
+
+    if (role && role.length > 0) {
+      role.map((item) => parsedRoles.push(LOGIN_ROLE[item]));
+    }
+
+    const repositoryResult =
+      await this.repository.findManyWithPagination<Prisma.loginsWhereInput>({
+        offset,
+        per_page,
+        sort,
+        where: {
+          ...(parsedRoles.length > 0 && {
+            role: {
+              in: parsedRoles,
+            },
+          }),
+          ...(email && {
+            email: {
+              contains: email,
+            },
+          }),
+        },
+      });
+
+    if (!repositoryResult)
+      throw new UnprocessableEntityException('repository_error');
+
+    return repositoryResult;
+  }
 
   async createOne(
     params: IAccountCreateParams,
