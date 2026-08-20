@@ -9,6 +9,12 @@ describe('AreasRepository', () => {
       count: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
+    };
+    logins_assigned_areas: {
+      deleteMany: jest.Mock;
+      createMany: jest.Mock;
     };
     $transaction: jest.Mock;
     errorHandler: jest.Mock;
@@ -20,6 +26,12 @@ describe('AreasRepository', () => {
         count: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+      logins_assigned_areas: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
       },
       $transaction: jest.fn((cb) => cb(database)),
       errorHandler: jest.fn(),
@@ -155,6 +167,101 @@ describe('AreasRepository', () => {
 
       const result = await repository.findAccountsById(params);
 
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('createOne', () => {
+    const params = {
+      alias: 'Support',
+      description: 'First line support',
+      created_at: new Date('2026-01-01T00:00:00.000Z'),
+      login_ids: ['login-a', 'login-b'],
+    };
+
+    it('should create the area with a nested link row per login and return the id', async () => {
+      database.areas.create.mockResolvedValue({ id: 'area-id' });
+
+      const result = await repository.createOne(params);
+
+      expect(database.areas.create).toHaveBeenCalledWith({
+        data: {
+          alias: params.alias,
+          description: params.description,
+          created_at: params.created_at,
+          logins: {
+            create: [{ login_id: 'login-a' }, { login_id: 'login-b' }],
+          },
+        },
+        select: { id: true },
+      });
+      expect(result).toEqual({ id: 'area-id' });
+    });
+
+    it('should delegate Prisma errors to errorHandler and return undefined when handler swallows', async () => {
+      const error = new Error('prisma');
+
+      database.areas.create.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.createOne(params);
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('updateOneById', () => {
+    it('should update only the provided scalar fields and leave the links untouched', async () => {
+      database.areas.update.mockResolvedValue({ id: 'area-id' });
+
+      const result = await repository.updateOneById({
+        id: 'area-id',
+        alias: 'Renamed',
+      });
+
+      expect(database.areas.update).toHaveBeenCalledWith({
+        where: { id: 'area-id' },
+        data: { alias: 'Renamed' },
+        select: { id: true },
+      });
+      expect(database.logins_assigned_areas.deleteMany).not.toHaveBeenCalled();
+      expect(database.logins_assigned_areas.createMany).not.toHaveBeenCalled();
+      expect(result).toEqual({ id: 'area-id' });
+    });
+
+    it('should replace the whole link set when login_ids is provided', async () => {
+      database.areas.update.mockResolvedValue({ id: 'area-id' });
+
+      await repository.updateOneById({
+        id: 'area-id',
+        login_ids: ['login-a', 'login-b'],
+      });
+
+      expect(database.logins_assigned_areas.deleteMany).toHaveBeenCalledWith({
+        where: { area_id: 'area-id' },
+      });
+      expect(database.logins_assigned_areas.createMany).toHaveBeenCalledWith({
+        data: [
+          { area_id: 'area-id', login_id: 'login-a' },
+          { area_id: 'area-id', login_id: 'login-b' },
+        ],
+      });
+    });
+
+    it('should update the area before touching the links so a missing area never reaches the link writes', async () => {
+      const error = new Error('prisma');
+
+      database.areas.update.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.updateOneById({
+        id: 'missing-area',
+        login_ids: ['login-a'],
+      });
+
+      expect(database.logins_assigned_areas.deleteMany).not.toHaveBeenCalled();
       expect(database.errorHandler).toHaveBeenCalledWith(error);
       expect(result).toBeUndefined();
     });

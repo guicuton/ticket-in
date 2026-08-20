@@ -5,9 +5,13 @@ import { PAGINATION_OPTIONS } from '../../../../../configuration/constants';
 import { DatabaseService } from '../../database.service';
 import { emptyPaginationData } from '../pagination';
 import {
+  IAreasCreateOneParams,
+  IAreasCreateOnePromise,
   IAreasFindAccountsParams,
   IAreasFindAccountsPromise,
   IAreasFindManyWithPaginationParams,
+  IAreasUpdateOneParams,
+  IAreasUpdateOnePromise,
 } from './repository.interface';
 
 @Injectable()
@@ -71,6 +75,65 @@ export class AreasRepository {
             },
           },
         },
+      })
+      .catch((err) => this.repository.errorHandler(err));
+
+    if (promise) return promise;
+  }
+
+  async createOne(
+    params: IAreasCreateOneParams,
+  ): Promise<IAreasCreateOnePromise | void> {
+    const { alias, description, created_at, login_ids } = params;
+
+    const promise = await this.repository.areas
+      .create({
+        data: {
+          alias,
+          description,
+          created_at,
+          logins: {
+            create: login_ids.map((login_id) => ({ login_id })),
+          },
+        },
+        select: {
+          id: true,
+        },
+      })
+      .catch((err) => this.repository.errorHandler(err));
+
+    if (promise) return promise;
+  }
+
+  async updateOneById(
+    params: IAreasUpdateOneParams,
+  ): Promise<IAreasUpdateOnePromise | void> {
+    const { id, alias, description, login_ids } = params;
+
+    const promise = await this.repository
+      .$transaction(async (tx) => {
+        const area = await tx.areas.update({
+          where: { id },
+          data: {
+            ...(alias && { alias }),
+            ...(description && { description }),
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (login_ids) {
+          await tx.logins_assigned_areas.deleteMany({
+            where: { area_id: id },
+          });
+
+          await tx.logins_assigned_areas.createMany({
+            data: login_ids.map((login_id) => ({ area_id: id, login_id })),
+          });
+        }
+
+        return area;
       })
       .catch((err) => this.repository.errorHandler(err));
 

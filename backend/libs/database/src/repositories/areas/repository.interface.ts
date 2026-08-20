@@ -25,3 +25,25 @@ export interface IAreasFindAccountsPromise {
     };
   }[];
 }
+
+export interface IAreasCreateOneParams {
+  alias: string;
+  description: string;
+  created_at: Date;
+  login_ids: string[];
+}
+
+export interface IAreasCreateOnePromise {
+  id: string;
+}
+
+export interface IAreasUpdateOneParams {
+  id: string;
+  alias?: string;
+  description?: string;
+  login_ids?: string[];
+}
+
+export interface IAreasUpdateOnePromise {
+  id: string;
+}
