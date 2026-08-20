@@ -11,3 +11,6 @@ export * from './repositories/tickets/repository.service';
 
 export * from './repositories/ticket-messages/repository.interface';
 export * from './repositories/ticket-messages/repository.service';
+
+export * from './repositories/areas/repository.interface';
+export * from './repositories/areas/repository.service';
