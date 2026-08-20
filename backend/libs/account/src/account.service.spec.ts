@@ -1,9 +1,19 @@
 import { CacheModuleServices } from '@app/cache';
-import { LoginRepository } from '@app/database';
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  LoginRepository,
+  LoginsRepository,
+  TICKET_RELATIONS,
+  TicketMessagesRepository,
+  TicketsRepository,
+} from '@app/database';
+import {
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
-import { DEFAULT_TTL } from '../../../utils/constants';
+import { CACHE_TTL } from '../../../configuration/constants';
+import { CACHE_TTL as DEFAULT_TTL } from '../../../configuration/constants';
 import { AccountService } from './account.service';
 
 jest.mock('bcrypt', () => ({
@@ -214,6 +224,240 @@ describe('AccountService', () => {
 
       expect(compareSyncMock).toHaveBeenCalledWith('plain', 'hash');
       expect(result).toBe(true);
+    });
+  });
+});
+
+describe('AccountService - tickets, messages and areas', () => {
+  let service: AccountService;
+  let cache: jest.Mocked<CacheModuleServices>;
+  let loginsRepository: jest.Mocked<LoginsRepository>;
+  let ticketsRepository: jest.Mocked<TicketsRepository>;
+  let ticketMessagesRepository: jest.Mocked<TicketMessagesRepository>;
+
+  const loginId = '00000000-0000-0000-0000-000000000002';
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AccountService,
+        {
+          provide: CacheModuleServices,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            deleteCollection: jest.fn(),
+          },
+        },
+        {
+          provide: LoginsRepository,
+          useValue: {
+            createOne: jest.fn(),
+            findOneById: jest.fn(),
+            findOneByUsernameOrEmail: jest.fn(),
+            updatePasswordById: jest.fn(),
+            findManyWithPagination: jest.fn(),
+            findAssignedAreasById: jest.fn(),
+          },
+        },
+        {
+          provide: TicketsRepository,
+          useValue: {
+            findManyWithPagination: jest.fn(),
+          },
+        },
+        {
+          provide: TicketMessagesRepository,
+          useValue: {
+            findManyWithPagination: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get(AccountService);
+    cache = module.get(CacheModuleServices);
+    loginsRepository = module.get(LoginsRepository);
+    ticketsRepository = module.get(TicketsRepository);
+    ticketMessagesRepository = module.get(TicketMessagesRepository);
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  describe('findTicketsWithPagination', () => {
+    const paginationResult = {
+      data: [{ id: 'ticket-1' }],
+      meta: { count: 1 },
+    };
+
+    it('should query by requester_login_id and parse the sort when relation is requester', async () => {
+      ticketsRepository.findManyWithPagination.mockResolvedValue(
+        paginationResult as never,
+      );
+
+      const result = await service.findTicketsWithPagination({
+        login_id: loginId,
+        relation: TICKET_RELATIONS.requester,
+        per_page: 10,
+        sort: '-created_at',
+      });
+
+      expect(ticketsRepository.findManyWithPagination).toHaveBeenCalledWith({
+        offset: undefined,
+        per_page: 10,
+        sort: { column: 'created_at', direction: 'desc' },
+        where: { requester_login_id: loginId },
+      });
+      expect(result).toBe(paginationResult);
+    });
+
+    it('should query by responser_login_id when relation is responser', async () => {
+      ticketsRepository.findManyWithPagination.mockResolvedValue(
+        paginationResult as never,
+      );
+
+      await service.findTicketsWithPagination({
+        login_id: loginId,
+        relation: TICKET_RELATIONS.responser,
+        per_page: 10,
+        offset: 5,
+        sort: 'created_at',
+      });
+
+      expect(ticketsRepository.findManyWithPagination).toHaveBeenCalledWith({
+        offset: 5,
+        per_page: 10,
+        sort: { column: 'created_at', direction: 'asc' },
+        where: { responser_login_id: loginId },
+      });
+    });
+
+    it('should throw UnprocessableEntityException when the repository returns a falsy value', async () => {
+      ticketsRepository.findManyWithPagination.mockResolvedValue(undefined);
+
+      await expect(
+        service.findTicketsWithPagination({
+          login_id: loginId,
+          relation: TICKET_RELATIONS.requester,
+          per_page: 10,
+          sort: 'created_at',
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+  });
+
+  describe('findMessagesWithPagination', () => {
+    const paginationResult = {
+      data: [{ id: 'message-1' }],
+      meta: { count: 1 },
+    };
+
+    it('should query by login_id, parse the sort and return the repository result', async () => {
+      ticketMessagesRepository.findManyWithPagination.mockResolvedValue(
+        paginationResult as never,
+      );
+
+      const result = await service.findMessagesWithPagination({
+        login_id: loginId,
+        per_page: 30,
+        offset: 10,
+        sort: '-created_at',
+      });
+
+      expect(
+        ticketMessagesRepository.findManyWithPagination,
+      ).toHaveBeenCalledWith({
+        offset: 10,
+        per_page: 30,
+        sort: { column: 'created_at', direction: 'desc' },
+        where: { login_id: loginId },
+      });
+      expect(result).toBe(paginationResult);
+    });
+
+    it('should throw UnprocessableEntityException when the repository returns a falsy value', async () => {
+      ticketMessagesRepository.findManyWithPagination.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(
+        service.findMessagesWithPagination({
+          login_id: loginId,
+          per_page: 30,
+          sort: 'created_at',
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+  });
+
+  describe('findAssignedAreas', () => {
+    it('should return the cached value and skip the repository when present', async () => {
+      const cached = [{ id: 'area-1', alias: 'support' }];
+      cache.get.mockResolvedValue(cached);
+
+      const result = await service.findAssignedAreas(loginId);
+
+      expect(cache.get).toHaveBeenCalledWith({
+        key: 'account:areas',
+        item: loginId,
+      });
+      expect(loginsRepository.findAssignedAreasById).not.toHaveBeenCalled();
+      expect(result).toBe(cached);
+    });
+
+    it('should return the cached empty array without hitting the repository', async () => {
+      cache.get.mockResolvedValue([]);
+
+      const result = await service.findAssignedAreas(loginId);
+
+      expect(loginsRepository.findAssignedAreasById).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
+    });
+
+    it('should query the repository, flatten assigned_areas and cache the result on cache miss', async () => {
+      cache.get.mockResolvedValue(undefined);
+      loginsRepository.findAssignedAreasById.mockResolvedValue({
+        assigned_areas: [
+          { areas: { id: 'area-1', alias: 'support' } },
+          { areas: { id: 'area-2', alias: 'billing' } },
+        ],
+      });
+
+      const result = await service.findAssignedAreas(loginId);
+
+      expect(loginsRepository.findAssignedAreasById).toHaveBeenCalledWith(
+        loginId,
+      );
+      expect(cache.set).toHaveBeenCalledWith({
+        key: 'account:areas',
+        item: loginId,
+        data: [
+          { id: 'area-1', alias: 'support' },
+          { id: 'area-2', alias: 'billing' },
+        ],
+        ttl: CACHE_TTL.ten,
+      });
+      expect(result).toEqual([
+        { id: 'area-1', alias: 'support' },
+        { id: 'area-2', alias: 'billing' },
+      ]);
+    });
+
+    it('should return an empty array and cache it when the repository returns void (login not found)', async () => {
+      cache.get.mockResolvedValue(undefined);
+      loginsRepository.findAssignedAreasById.mockResolvedValue(undefined);
+
+      const result = await service.findAssignedAreas(loginId);
+
+      expect(cache.set).toHaveBeenCalledWith({
+        key: 'account:areas',
+        item: loginId,
+        data: [],
+        ttl: CACHE_TTL.ten,
+      });
+      expect(result).toEqual([]);
     });
   });
 });

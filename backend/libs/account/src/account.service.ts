@@ -1,5 +1,11 @@
 import { CacheModuleServices } from '@app/cache';
-import { ILoginsUpdatePasswordPromise, LoginsRepository } from '@app/database';
+import {
+  ILoginsUpdatePasswordPromise,
+  LoginsRepository,
+  TICKET_RELATIONS,
+  TicketMessagesRepository,
+  TicketsRepository,
+} from '@app/database';
 import {
   Injectable,
   UnauthorizedException,
@@ -12,9 +18,14 @@ import { parseSort } from '../../../utils/parse-sort';
 import { Prisma } from '../../database/prisma/generated/client';
 import { LOGIN_ROLE } from '../../database/prisma/generated/enums';
 import {
+  IAccountAreaItemListPromise,
   IAccountCreateParams,
   IAccountCreatePromise,
+  IAccountFindMessagesParams,
+  IAccountFindTicketsParams,
   IAccountListWithPaginationPromise,
+  IAccountMessageListWithPaginationPromise,
+  IAccountTicketListWithPaginationPromise,
   IAccountUpdatePasswordParams,
   IAccountValidateLoginParams,
   IAccountValidateLoginPromise,
@@ -26,6 +37,8 @@ export class AccountService {
   constructor(
     private readonly cache: CacheModuleServices,
     private readonly repository: LoginsRepository,
+    private readonly ticketsRepository: TicketsRepository,
+    private readonly ticketMessagesRepository: TicketMessagesRepository,
   ) {}
 
   async findManyWithPagination(
@@ -147,5 +160,83 @@ export class AccountService {
   validatePassword(params: IAccountValidatePasswordParams): boolean {
     const { hashPassword, userPassword } = params;
     return bcrypt.compareSync(userPassword, hashPassword);
+  }
+
+  async findTicketsWithPagination(
+    params: IAccountFindTicketsParams,
+  ): Promise<IAccountTicketListWithPaginationPromise> {
+    const { login_id, relation, per_page, offset, sort } = params;
+    const parsedSort = parseSort(sort);
+
+    const where: Prisma.ticketsWhereInput =
+      relation === TICKET_RELATIONS.requester
+        ? { requester_login_id: login_id }
+        : { responser_login_id: login_id };
+
+    const repositoryResult =
+      await this.ticketsRepository.findManyWithPagination<Prisma.ticketsWhereInput>(
+        {
+          offset,
+          per_page,
+          sort: parsedSort,
+          where,
+        },
+      );
+
+    if (!repositoryResult)
+      throw new UnprocessableEntityException('repository_error');
+
+    return repositoryResult;
+  }
+
+  async findMessagesWithPagination(
+    params: IAccountFindMessagesParams,
+  ): Promise<IAccountMessageListWithPaginationPromise> {
+    const { login_id, per_page, offset, sort } = params;
+    const parsedSort = parseSort(sort);
+
+    const repositoryResult =
+      await this.ticketMessagesRepository.findManyWithPagination<Prisma.ticket_messagesWhereInput>(
+        {
+          offset,
+          per_page,
+          sort: parsedSort,
+          where: { login_id },
+        },
+      );
+
+    if (!repositoryResult)
+      throw new UnprocessableEntityException('repository_error');
+
+    return repositoryResult;
+  }
+
+  async findAssignedAreas(
+    login_id: string,
+  ): Promise<IAccountAreaItemListPromise[]> {
+    const cacheKey = 'account:areas';
+    const cacheItem = login_id;
+    const cache = await this.cache.get<IAccountAreaItemListPromise[]>({
+      key: cacheKey,
+      item: cacheItem,
+    });
+
+    if (cache) return cache;
+
+    const repositoryResult =
+      await this.repository.findAssignedAreasById(login_id);
+
+    const areas: IAccountAreaItemListPromise[] = repositoryResult
+      ? repositoryResult.assigned_areas.map((item) => item.areas)
+      : [];
+
+    await this.cache.set({
+      key: cacheKey,
+      item: cacheItem,
+      data: areas,
+      ttl: CACHE_TTL.ten,
+    });
+
+    return areas;
   }
 }
