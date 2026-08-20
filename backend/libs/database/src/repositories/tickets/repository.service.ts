@@ -25,6 +25,7 @@ export class TicketsRepository {
         orderBy: sort.column,
         orderDirection: sort.direction,
         where: prismaParams.where,
+        select: prismaParams.select,
       });
 
       return promise ?? emptyPaginationData();

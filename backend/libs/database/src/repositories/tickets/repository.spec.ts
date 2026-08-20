@@ -99,5 +99,32 @@ describe('TicketsRepository', () => {
       expect(database.errorHandler).toHaveBeenCalledWith(error);
       expect(result).toBeUndefined();
     });
+
+    it('should forward select to the underlying findMany when provided', async () => {
+      const select = {
+        id: true,
+        login_requester: { select: { username: true } },
+      };
+
+      database.tickets.count.mockResolvedValue(1);
+      database.tickets.findMany.mockResolvedValue([{ id: 'ticket-id' }]);
+
+      await repository.findManyWithPagination({ ...params, select });
+
+      expect(database.tickets.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ select }),
+      );
+    });
+
+    it('should not send a select key when none is provided', async () => {
+      database.tickets.count.mockResolvedValue(1);
+      database.tickets.findMany.mockResolvedValue([{ id: 'ticket-id' }]);
+
+      await repository.findManyWithPagination(params);
+
+      expect(database.tickets.findMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ select: expect.anything() }),
+      );
+    });
   });
 });

@@ -54,3 +54,8 @@ export interface ILoginsFindAssignedAreasPromise {
     };
   }[];
 }
+
+export interface ILoginsFindRolesByIdsPromise {
+  id: string;
+  role: keyof typeof LOGIN_ROLES;
+}

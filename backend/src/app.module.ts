@@ -1,11 +1,13 @@
 import { AccountModule } from '@app/account';
+import { AreasModule } from '@app/areas';
 import { AuthModule, JwtAuthGuard, RoleGuard } from '@app/auth';
 import { CacheModule } from '@app/cache';
 import { DatabaseModule } from '@app/database';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { config } from '../configuration/configuration';
-import { AreasController } from './controllers/areas/app.controller';
+import { AreasController } from './controllers/areas/areas.controller';
+import { AreasControllerService } from './controllers/areas/areas.service';
 import { AccountController } from './controllers/account/account.controller';
 import { AccountControllerService } from './controllers/account/account.service';
 import { JwtModule } from '@nestjs/jwt';
@@ -37,10 +39,12 @@ import { APP_GUARD } from '@nestjs/core';
     CacheModule,
     AuthModule,
     AccountModule,
+    AreasModule,
   ],
   controllers: [AccountController, AreasController],
   providers: [
     AccountControllerService,
+    AreasControllerService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

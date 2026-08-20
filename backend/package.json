@@ -111,6 +111,7 @@
     ],
     "moduleNameMapper": {
       "^@app/account(|/.*)$": "<rootDir>/libs/account/src/$1",
+      "^@app/areas(|/.*)$": "<rootDir>/libs/areas/src/$1",
       "^@app/auth(|/.*)$": "<rootDir>/libs/auth/src/$1",
       "^@app/cache(|/.*)$": "<rootDir>/libs/cache/src/$1",
       "^@app/database(|/.*)$": "<rootDir>/libs/database/src/$1"
