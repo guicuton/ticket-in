@@ -2767,7 +2767,7 @@ NestFactory.create(AppModule, { logger: ['log'] })
 "
 ```
 
-Expected: the log lists `Mapped {/tickets/list, GET}`, `Mapped {/tickets/create, POST}`, `Mapped {/tickets/:id, GET}`, `Mapped {/tickets/:id/messages, GET}`, `Mapped {/tickets/:id, PUT}` with `list` and `create` appearing before `:id`. If the boot fails for a reason unrelated to routing — a missing Redis or Postgres connection — record that and rely on the unit suites instead; a connection error is not a routing failure.
+Expected: the log lists `Mapped {/tickets/list, GET}`, `Mapped {/tickets, POST}`, `Mapped {/tickets/:id, GET}`, `Mapped {/tickets/:id/messages, GET}`, `Mapped {/tickets/:id, PUT}` with `list` and `create` appearing before `:id`. If the boot fails for a reason unrelated to routing — a missing Redis or Postgres connection — record that and rely on the unit suites instead; a connection error is not a routing failure.
 
 - [ ] **Step 9: Commit**
 

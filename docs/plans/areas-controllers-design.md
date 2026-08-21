@@ -6,13 +6,13 @@ service in a new `libs/areas`, and the HTTP port in `src/controllers/areas`.
 
 All five routes are restricted to `ADMIN` and `MASTER`.
 
-| Method | Route | Shape |
-| --- | --- | --- |
-| GET | `areas/list` | paginated, `_count` of logins and tickets |
-| GET | `areas/:id/accounts` | full list, cached |
-| GET | `areas/:id/tickets` | paginated, with requester/responser usernames |
-| POST | `areas/create` | creates area + login links |
-| PUT | `areas/:id` | updates alias, description, login links |
+| Method | Route                | Shape                                         |
+| ------ | -------------------- | --------------------------------------------- |
+| GET    | `areas/list`         | paginated, `_count` of logins and tickets     |
+| GET    | `areas/:id/accounts` | full list, cached                             |
+| GET    | `areas/:id/tickets`  | paginated, with requester/responser usernames |
+| POST   | `areas`              | creates area + login links                    |
+| PUT    | `areas/:id`          | updates alias, description, login links       |
 
 ## Business rules
 
@@ -41,7 +41,7 @@ All five routes are restricted to `ADMIN` and `MASTER`.
   like `TicketsRepository`.
 - `findAccountsById({ id, sort })` — `areas.findUnique` selecting
   `logins: { select: { logins: { select: { id, username, email } } },
-  orderBy: { logins: { [column]: direction } } }`. Ordering by the related
+orderBy: { logins: { [column]: direction } } }`. Ordering by the related
   `logins` row is valid Prisma on a to-one relation from the join model.
 - `createOne({ alias, description, created_at, login_ids })` —
   `areas.create` with a nested
@@ -53,7 +53,7 @@ All five routes are restricted to `ADMIN` and `MASTER`.
      `select: { id: true }` — this throws `P2025` when the area does not
      exist, before any link is touched;
   2. when `login_ids` is provided, `logins_assigned_areas.deleteMany({
-     where: { area_id: id } })` then `createMany` with the new pairs.
+where: { area_id: id } })` then `createMany` with the new pairs.
 
   Order matters: doing the delete first would let a missing area fall
   through to a foreign-key error instead of a clean not-found.
@@ -177,13 +177,13 @@ entries stale.
 
 ## Errors
 
-| Status | When |
-| --- | --- |
-| 400 | DTO validation, or an empty update body |
-| 401 | missing/invalid token |
-| 403 | role is not ADMIN or MASTER |
-| 404 | `areas/:id` update against an id that does not exist |
-| 422 | `invalid_area_logins`, or `repository_error` on a falsy list result |
+| Status | When                                                                |
+| ------ | ------------------------------------------------------------------- |
+| 400    | DTO validation, or an empty update body                             |
+| 401    | missing/invalid token                                               |
+| 403    | role is not ADMIN or MASTER                                         |
+| 404    | `areas/:id` update against an id that does not exist                |
+| 422    | `invalid_area_logins`, or `repository_error` on a falsy list result |
 
 `errorHandler` already maps `P2002` to 409 and swallows `P2025` (which is what
 turns a missing area into a void return, and then into the 404).

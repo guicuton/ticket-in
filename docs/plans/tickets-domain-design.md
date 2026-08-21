@@ -18,13 +18,13 @@ Declaration order inside the controller matters: NestJS matches in declaration
 order, so `@Get('list')` MUST be declared before `@Get(':id')`, otherwise
 `/tickets/list` is captured by the param route.
 
-| Method | Path | Roles | Paginated | Cached |
-|---|---|---|---|---|
-| GET | `tickets/list` | any authenticated | yes | no |
-| GET | `tickets/:id` | any authenticated | no | yes |
-| GET | `tickets/:id/messages` | any authenticated | no | yes |
-| POST | `tickets/create` | any authenticated | — | — |
-| PUT | `tickets/:id` | ADMIN, MASTER | — | — |
+| Method | Path                   | Roles             | Paginated | Cached |
+| ------ | ---------------------- | ----------------- | --------- | ------ |
+| GET    | `tickets/list`         | any authenticated | yes       | no     |
+| GET    | `tickets/:id`          | any authenticated | no        | yes    |
+| GET    | `tickets/:id/messages` | any authenticated | no        | yes    |
+| POST   | `tickets`              | any authenticated | —         | —      |
+| PUT    | `tickets/:id`          | ADMIN, MASTER     | —         | —      |
 
 "any authenticated" means the handler carries no `@Roles()` decorator.
 `RoleGuard` returns `true` when the `roles` metadata is absent, so
@@ -36,10 +36,10 @@ scope rules in section 3 — never by the guard.
 This is the core rule of the domain. A private resolver on `TicketsService`
 turns the authenticated account into a `where` fragment:
 
-| Role | Fixed fragment | Query filters honored |
-|---|---|---|
-| `USER` | `{ requester_login_id: <account.id> }` | ignored |
-| `ADMIN` / `MASTER` | none | `requester_login_id`, `responser_login_id` |
+| Role               | Fixed fragment                         | Query filters honored                      |
+| ------------------ | -------------------------------------- | ------------------------------------------ |
+| `USER`             | `{ requester_login_id: <account.id> }` | ignored                                    |
+| `ADMIN` / `MASTER` | none                                   | `requester_login_id`, `responser_login_id` |
 
 A `USER` is scoped by `requester_login_id` alone, not by
 `requester_login_id OR responser_login_id`. Section 6 requires every
@@ -79,22 +79,26 @@ counts must reflect the caller's scope.
 ### 4.1 Modified
 
 `backend/libs/database/src/repositories/tickets/repository.interface.ts`
+
 - Add `TICKET_PRIORITIES` and `TICKET_STATES` const objects, next to the
   existing `TICKET_RELATIONS`. Hand-written, mirroring `LOGIN_ROLES` — this is
   the established pattern for feeding `@IsIn(Object.keys(...))` in a DTO.
 - Add params/promise interfaces for the three new methods.
 
 `backend/libs/database/src/repositories/tickets/repository.service.ts`
+
 - Add `findOne`, `createOne`, `updateOneById`.
 - `findManyWithPagination` is NOT modified. It already forwards `select`, and
   `_count: { select: { messages: true } }` nests inside that `select`.
 
 `backend/libs/database/src/repositories/ticket-messages/repository.interface.ts`
 `backend/libs/database/src/repositories/ticket-messages/repository.service.ts`
+
 - Add `findManyByTicketId` — no pagination, ordered `created_at desc`.
 
 `backend/libs/database/src/repositories/areas/repository.interface.ts`
 `backend/libs/database/src/repositories/areas/repository.service.ts`
+
 - Add `findOneById` returning `{ id }`, used to validate `area_id` before a
   write.
 
@@ -130,9 +134,9 @@ audit logging); the domain service owns business rules, cache, and validation.
 
 ## 5. Cache
 
-| Key | Item | Payload | TTL |
-|---|---|---|---|
-| `tickets:detail` | `<ticket_id>` | full ticket + `_count.messages` | `CACHE_TTL.ten` |
+| Key                | Item          | Payload                                | TTL             |
+| ------------------ | ------------- | -------------------------------------- | --------------- |
+| `tickets:detail`   | `<ticket_id>` | full ticket + `_count.messages`        | `CACHE_TTL.ten` |
 | `tickets:messages` | `<ticket_id>` | full message thread, `created_at` desc | `CACHE_TTL.ten` |
 
 `CacheModuleServices` joins key and item with `:`, so the effective Redis keys
@@ -146,16 +150,13 @@ allowed to see it, and section 3.1 authorizes from the cached payload.
 `PUT tickets/:id` drops exactly two keys, by name:
 
 ```ts
-await this.cache.delete([
-  `tickets:detail:${ticket_id}`,
-  `tickets:messages:${ticket_id}`,
-]);
+await this.cache.delete([`tickets:detail:${ticket_id}`, `tickets:messages:${ticket_id}`]);
 ```
 
 Explicit `delete`, not `deleteCollection`. `deleteCollection` runs `SCAN` over
 the whole keyspace; both keys are known exactly, so scanning buys nothing.
 
-`POST tickets/create` invalidates nothing. The id is a fresh UUID v7, so no
+`POST tickets` invalidates nothing. The id is a fresh UUID v7, so no
 cache entry for it can exist.
 
 `tickets/list` is not cached — it is paginated and filterable, so the key space
@@ -193,7 +194,7 @@ would report as `404 ticket_not_found`. That would be a misleading answer to
 "this area_id does not exist". Every referenced id is therefore validated with
 an explicit read before the write.
 
-### 6.2 `POST tickets/create`
+### 6.2 `POST tickets`
 
 Body: `area_id` (optional uuid), `subject`, `description`.
 
@@ -209,38 +210,38 @@ Body: `area_id`, `requester_login_id`, `responser_login_id`, `subject`,
 rejected with **400 `empty_payload`**, in the controller service, mirroring
 `AreasControllerService.updateOneById`.
 
-| Condition | Status | Message |
-|---|---|---|
-| `responser_login_id` missing from `logins`, or its role is not ADMIN/MASTER | 422 | `invalid_ticket_responser` |
-| `requester_login_id` missing from `logins` (any role accepted) | 422 | `invalid_ticket_requester` |
-| `area_id` missing from `areas` | 422 | `invalid_ticket_area` |
-| ticket does not exist | 404 | `ticket_not_found` |
-| body has no updatable field | 400 | `empty_payload` |
+| Condition                                                                   | Status | Message                    |
+| --------------------------------------------------------------------------- | ------ | -------------------------- |
+| `responser_login_id` missing from `logins`, or its role is not ADMIN/MASTER | 422    | `invalid_ticket_responser` |
+| `requester_login_id` missing from `logins` (any role accepted)              | 422    | `invalid_ticket_requester` |
+| `area_id` missing from `areas`                                              | 422    | `invalid_ticket_area`      |
+| ticket does not exist                                                       | 404    | `ticket_not_found`         |
+| body has no updatable field                                                 | 400    | `empty_payload`            |
 
 The responser check reuses `LoginsRepository.findManyRolesByIds`, the same
 method `AreasService.validateAssignableLogins` uses.
 
 ### 6.4 Read routes
 
-| Condition | Status | Message |
-|---|---|---|
-| ticket does not exist, or is outside the caller's scope | 404 | `ticket_not_found` |
-| repository returned `void` on a list | 422 | `repository_error` |
+| Condition                                               | Status | Message            |
+| ------------------------------------------------------- | ------ | ------------------ |
+| ticket does not exist, or is outside the caller's scope | 404    | `ticket_not_found` |
+| repository returned `void` on a list                    | 422    | `repository_error` |
 
 ## 7. Query contract
 
 ### 7.1 `GET tickets/list`
 
-| Param | Required | Shape |
-|---|---|---|
-| `per_page` | yes | one of `PAGINATION_OPTIONS.perPage` |
-| `offset` | no | int ≥ 0 |
-| `sort` | yes | one of `created_at`, `updated_at`, `priority`, `state`, `subject`, each also with a `-` prefix for descending |
-| `state` | no | array of `TICKET_STATES` keys |
-| `priority` | no | array of `TICKET_PRIORITIES` keys |
-| `area_id` | no | uuid |
-| `requester_login_id` | no | uuid — honored for ADMIN/MASTER only |
-| `responser_login_id` | no | uuid — honored for ADMIN/MASTER only |
+| Param                | Required | Shape                                                                                                         |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `per_page`           | yes      | one of `PAGINATION_OPTIONS.perPage`                                                                           |
+| `offset`             | no       | int ≥ 0                                                                                                       |
+| `sort`               | yes      | one of `created_at`, `updated_at`, `priority`, `state`, `subject`, each also with a `-` prefix for descending |
+| `state`              | no       | array of `TICKET_STATES` keys                                                                                 |
+| `priority`           | no       | array of `TICKET_PRIORITIES` keys                                                                             |
+| `area_id`            | no       | uuid                                                                                                          |
+| `requester_login_id` | no       | uuid — honored for ADMIN/MASTER only                                                                          |
+| `responser_login_id` | no       | uuid — honored for ADMIN/MASTER only                                                                          |
 
 Array params use the same `@Transform` normalization as
 `IAccountsListQueryDTO.role`, so a single value and a repeated value both
