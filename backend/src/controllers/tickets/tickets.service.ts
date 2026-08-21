@@ -1,4 +1,5 @@
 import {
+  ITicketCreateMessagePromise,
   ITicketCreatePromise,
   ITicketDetailPromise,
   ITicketListWithPaginationPromise,
@@ -10,6 +11,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   ITicketCreateControllerParams,
   ITicketDetailParams,
+  ITicketMessageCreateControllerParams,
   ITicketMessagesParams,
   ITicketsListParams,
   ITicketUpdateControllerParams,
@@ -94,6 +96,25 @@ export class TicketsControllerService {
 
     this.logger.log(
       `[updateOneById] - LOGINID:${account.id} | TICKETID:${serviceResult.id} | IP:${ip} - TICKET UPDATED`,
+    );
+
+    return serviceResult;
+  }
+
+  async createMessage(
+    params: ITicketMessageCreateControllerParams,
+  ): Promise<ITicketCreateMessagePromise> {
+    const { ticket_id, body, ip, account } = params;
+
+    const serviceResult = await this.ticketsService.createMessage({
+      ticket_id,
+      account,
+      message: body.message,
+      ...(body.state && { state: body.state }),
+    });
+
+    this.logger.log(
+      `[createMessage] - LOGINID:${account.id} | TICKETID:${ticket_id} | MESSAGEID:${serviceResult.id} | STATE:${serviceResult.state} | IP:${ip} - MESSAGE CREATED`,
     );
 
     return serviceResult;

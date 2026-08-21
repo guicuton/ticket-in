@@ -1,5 +1,9 @@
 import { TICKET_PRIORITIES, TICKET_STATES } from '@app/database';
-import { ITicketCreatePromise, ITicketUpdatePromise } from '@app/tickets';
+import {
+  ITicketCreateMessagePromise,
+  ITicketCreatePromise,
+  ITicketUpdatePromise,
+} from '@app/tickets';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -246,4 +250,37 @@ export class ITicketCreateResponseDTO implements ITicketCreatePromise {
 export class ITicketUpdateResponseDTO implements ITicketUpdatePromise {
   @ApiProperty({ format: 'uuid' })
   id: string;
+}
+
+export class ITicketMessageCreateDTO {
+  @ApiProperty({
+    description: 'Message body',
+    example: 'The printer is still not responding after the reboot',
+    maxLength: 5000,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(5000)
+  message: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Resulting ticket state. Required for ADMIN/MASTER, rejected for USER',
+    example: 'WAITING_FEEDBACK',
+    enum: Object.keys(TICKET_STATES),
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(Object.keys(TICKET_STATES))
+  state?: keyof typeof TICKET_STATES;
+}
+
+export class ITicketMessageCreateResponseDTO
+  implements ITicketCreateMessagePromise
+{
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ enum: Object.keys(TICKET_STATES) })
+  state: keyof typeof TICKET_STATES;
 }

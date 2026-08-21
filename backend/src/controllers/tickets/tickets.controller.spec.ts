@@ -1,3 +1,4 @@
+import { RequestMethod } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TicketsController } from './tickets.controller';
 import { TicketsControllerService } from './tickets.service';
@@ -25,6 +26,7 @@ describe('TicketsController', () => {
             findOneById: jest.fn(),
             findMessages: jest.fn(),
             createOne: jest.fn(),
+            createMessage: jest.fn(),
             updateOneById: jest.fn(),
           },
         },
@@ -91,6 +93,44 @@ describe('TicketsController', () => {
       body,
       ip,
       account,
+    });
+  });
+
+  it('should map the id param and the body on message create', async () => {
+    const body = { message: 'still down' };
+    await controller.createMessage(account, ip, { id: ticket_id }, body);
+
+    expect(controllerService.createMessage).toHaveBeenCalledWith({
+      ticket_id,
+      body,
+      ip,
+      account,
+    });
+  });
+
+  describe('route wiring', () => {
+    it('should nest the message create under the ticket id as a POST', () => {
+      expect(
+        Reflect.getMetadata('path', TicketsController.prototype.createMessage),
+      ).toBe(':id/messages/create');
+      expect(
+        Reflect.getMetadata(
+          'method',
+          TicketsController.prototype.createMessage,
+        ),
+      ).toBe(RequestMethod.POST);
+    });
+
+    it('should leave the message create open to every role, scoped by the ticket', () => {
+      expect(
+        Reflect.getMetadata('roles', TicketsController.prototype.createMessage),
+      ).toBeUndefined();
+    });
+
+    it('should keep the ticket update pinned to ADMIN and MASTER', () => {
+      expect(
+        Reflect.getMetadata('roles', TicketsController.prototype.update),
+      ).toEqual(['ADMIN', 'MASTER']);
     });
   });
 });

@@ -3,6 +3,7 @@ import { validate } from 'class-validator';
 import {
   ITicketCreateDTO,
   ITicketIdParamDTO,
+  ITicketMessageCreateDTO,
   ITicketsListQueryDTO,
   ITicketUpdateDTO,
 } from './tickets.dto';
@@ -117,6 +118,56 @@ describe('tickets DTOs', () => {
       await expect(
         check(ITicketUpdateDTO, { priority: 'BLOCKER' }),
       ).resolves.toEqual(['priority']);
+    });
+  });
+
+  describe('ITicketMessageCreateDTO', () => {
+    it('should accept a message on its own', async () => {
+      await expect(
+        check(ITicketMessageCreateDTO, { message: 'still down' }),
+      ).resolves.toEqual([]);
+    });
+
+    it('should accept a message carrying a state', async () => {
+      await expect(
+        check(ITicketMessageCreateDTO, {
+          message: 'looking into it',
+          state: 'WAITING_FEEDBACK',
+        }),
+      ).resolves.toEqual([]);
+    });
+
+    it('should reject a missing message', async () => {
+      await expect(check(ITicketMessageCreateDTO, {})).resolves.toEqual([
+        'message',
+      ]);
+    });
+
+    it('should reject an empty message', async () => {
+      await expect(
+        check(ITicketMessageCreateDTO, { message: '' }),
+      ).resolves.toEqual(['message']);
+    });
+
+    it('should reject a message past the length cap', async () => {
+      await expect(
+        check(ITicketMessageCreateDTO, { message: 'a'.repeat(5001) }),
+      ).resolves.toEqual(['message']);
+    });
+
+    it('should accept a message at the length cap', async () => {
+      await expect(
+        check(ITicketMessageCreateDTO, { message: 'a'.repeat(5000) }),
+      ).resolves.toEqual([]);
+    });
+
+    it('should reject an unknown state', async () => {
+      await expect(
+        check(ITicketMessageCreateDTO, {
+          message: 'still down',
+          state: 'CLOSED',
+        }),
+      ).resolves.toEqual(['state']);
     });
   });
 });

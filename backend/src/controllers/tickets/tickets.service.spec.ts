@@ -26,6 +26,7 @@ describe('TicketsControllerService', () => {
             findOneById: jest.fn(),
             findMessagesByTicketId: jest.fn(),
             createOne: jest.fn(),
+            createMessage: jest.fn(),
             updateOneById: jest.fn(),
           },
         },
@@ -109,5 +110,67 @@ describe('TicketsControllerService', () => {
       id: ticket_id,
       state: 'RESOLVED',
     });
+  });
+
+  it('should name the message and the author explicitly on message create', async () => {
+    ticketsService.createMessage.mockResolvedValue({
+      id: '019538c4-2f7a-7c31-9c1b-000000000003',
+      state: 'WAITING_FEEDBACK',
+    });
+
+    await controllerService.createMessage({
+      ticket_id,
+      account,
+      ip,
+      body: {
+        message: 'looking into it',
+        state: 'WAITING_FEEDBACK',
+      },
+    });
+
+    expect(ticketsService.createMessage).toHaveBeenCalledWith({
+      ticket_id,
+      account,
+      message: 'looking into it',
+      state: 'WAITING_FEEDBACK',
+    });
+  });
+
+  it('should never let a smuggled login_id reach the domain on message create', async () => {
+    ticketsService.createMessage.mockResolvedValue({
+      id: '019538c4-2f7a-7c31-9c1b-000000000003',
+      state: 'IN_PROGRESS',
+    });
+
+    await controllerService.createMessage({
+      ticket_id,
+      account,
+      ip,
+      body: {
+        message: 'looking into it',
+        state: 'IN_PROGRESS',
+        login_id: '019538c4-2f7a-7c31-9c1b-000000000009',
+      } as never,
+    });
+
+    const [call] = ticketsService.createMessage.mock.calls;
+    expect(call[0]).not.toHaveProperty('login_id');
+  });
+
+  it('should omit the state when the message body carries none', async () => {
+    ticketsService.createMessage.mockResolvedValue({
+      id: '019538c4-2f7a-7c31-9c1b-000000000003',
+      state: 'NEW',
+    });
+
+    await controllerService.createMessage({
+      ticket_id,
+      account,
+      ip,
+      body: { message: 'still down' },
+    });
+
+    const [call] = ticketsService.createMessage.mock.calls;
+    expect(call[0]).not.toHaveProperty('state');
   });
 });

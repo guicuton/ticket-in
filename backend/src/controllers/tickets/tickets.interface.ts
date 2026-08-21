@@ -1,5 +1,10 @@
 import type { IAuthenticatedAccount } from '@app/auth';
-import { ITicketCreateDTO, ITicketsListQueryDTO, ITicketUpdateDTO } from './tickets.dto';
+import {
+  ITicketCreateDTO,
+  ITicketMessageCreateDTO,
+  ITicketsListQueryDTO,
+  ITicketUpdateDTO,
+} from './tickets.dto';
 
 export interface ITicketsListParams {
   account: IAuthenticatedAccount;
@@ -25,6 +30,13 @@ export interface ITicketCreateControllerParams {
 export interface ITicketUpdateControllerParams {
   id: string;
   body: ITicketUpdateDTO;
+  ip: string;
+  account: IAuthenticatedAccount;
+}
+
+export interface ITicketMessageCreateControllerParams {
+  ticket_id: string;
+  body: ITicketMessageCreateDTO;
   ip: string;
   account: IAuthenticatedAccount;
 }

@@ -1,6 +1,7 @@
 import type { IAuthenticatedAccount } from '@app/auth';
 import { LOGIN_ROLES } from '@app/database';
 import {
+  ITicketCreateMessagePromise,
   ITicketCreatePromise,
   ITicketDetailPromise,
   ITicketListWithPaginationPromise,
@@ -31,6 +32,8 @@ import {
   ITicketCreateDTO,
   ITicketCreateResponseDTO,
   ITicketIdParamDTO,
+  ITicketMessageCreateDTO,
+  ITicketMessageCreateResponseDTO,
   ITicketsListQueryDTO,
   ITicketUpdateDTO,
   ITicketUpdateResponseDTO,
@@ -137,6 +140,44 @@ export class TicketsController {
   ): Promise<ITicketMessageItemListPromise[]> {
     return await this.controllerService.findMessages({
       ticket_id: params.id,
+      account,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Create a ticket message',
+    description:
+      'Posts a message on the ticket thread. Whoever can read the ticket can post to it. ADMIN and MASTER must name the resulting ticket state; a USER must not send one, and their message only moves a WAITING_FEEDBACK ticket back to IN_PROGRESS.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiBody({ type: ITicketMessageCreateDTO })
+  @ApiResponse({
+    status: 201,
+    description: 'Message created successfully.',
+    type: ITicketMessageCreateResponseDTO,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Validation failed, an ADMIN/MASTER omitted the state, or a USER sent one.',
+  })
+  @ApiResponse({ status: 401, description: 'Missing/invalid token.' })
+  @ApiResponse({ status: 404, description: 'Ticket not found.' })
+  @ApiResponse({
+    status: 422,
+    description: 'The ticket is resolved and takes no further messages.',
+  })
+  @Post(':id/messages/create')
+  async createMessage(
+    @Account() account: IAuthenticatedAccount,
+    @Ip() ip: string,
+    @Param() params: ITicketIdParamDTO,
+    @Body() body: ITicketMessageCreateDTO,
+  ): Promise<ITicketCreateMessagePromise> {
+    return await this.controllerService.createMessage({
+      ticket_id: params.id,
+      body,
+      ip,
       account,
     });
   }
