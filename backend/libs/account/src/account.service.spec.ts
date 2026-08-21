@@ -1,6 +1,5 @@
 import { CacheModuleServices } from '@app/cache';
 import {
-  LoginRepository,
   LoginsRepository,
   TICKET_RELATIONS,
   TicketMessagesRepository,
@@ -13,7 +12,6 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 import { CACHE_TTL } from '../../../configuration/constants';
-import { CACHE_TTL as DEFAULT_TTL } from '../../../configuration/constants';
 import { AccountService } from './account.service';
 
 jest.mock('bcrypt', () => ({
@@ -27,7 +25,7 @@ const compareSyncMock = bcrypt.compareSync as jest.Mock;
 describe('AccountService', () => {
   let service: AccountService;
   let cache: jest.Mocked<CacheModuleServices>;
-  let repository: jest.Mocked<LoginRepository>;
+  let repository: jest.Mocked<LoginsRepository>;
 
   const uuid = '019538c4-2f7a-7c31-9c1b-000000000001';
 
@@ -44,20 +42,30 @@ describe('AccountService', () => {
           },
         },
         {
-          provide: LoginRepository,
+          provide: LoginsRepository,
           useValue: {
             createOne: jest.fn(),
             findOneById: jest.fn(),
-            findOneByAccountnameOrEmail: jest.fn(),
+            findOneByUsernameOrEmail: jest.fn(),
             updatePasswordById: jest.fn(),
+            findManyWithPagination: jest.fn(),
+            findAssignedAreasById: jest.fn(),
           },
+        },
+        {
+          provide: TicketsRepository,
+          useValue: { findManyWithPagination: jest.fn() },
+        },
+        {
+          provide: TicketMessagesRepository,
+          useValue: { findManyWithPagination: jest.fn() },
         },
       ],
     }).compile();
 
     service = module.get(AccountService);
     cache = module.get(CacheModuleServices);
-    repository = module.get(LoginRepository);
+    repository = module.get(LoginsRepository);
   });
 
   afterEach(() => {
@@ -68,11 +76,107 @@ describe('AccountService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('findManyWithPagination', () => {
+    const pagination = { data: [], meta: { count: 0 } };
+
+    it('should send an empty where when no filter is given', async () => {
+      repository.findManyWithPagination.mockResolvedValue(pagination as never);
+
+      const result = await service.findManyWithPagination({
+        per_page: 10,
+        sort: '-created_at',
+      });
+
+      expect(repository.findManyWithPagination).toHaveBeenCalledWith({
+        offset: undefined,
+        per_page: 10,
+        sort: { column: 'created_at', direction: 'desc' },
+        where: {},
+      });
+      expect(result).toBe(pagination);
+    });
+
+    it('should turn the role filter into an in clause', async () => {
+      repository.findManyWithPagination.mockResolvedValue(pagination as never);
+
+      await service.findManyWithPagination({
+        per_page: 10,
+        sort: 'created_at',
+        role: ['ADMIN', 'MASTER'],
+      });
+
+      expect(repository.findManyWithPagination).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { role: { in: ['ADMIN', 'MASTER'] } },
+        }),
+      );
+    });
+
+    it('should drop an empty role array instead of sending an empty in clause', async () => {
+      repository.findManyWithPagination.mockResolvedValue(pagination as never);
+
+      await service.findManyWithPagination({
+        per_page: 10,
+        sort: 'created_at',
+        role: [],
+      });
+
+      expect(repository.findManyWithPagination).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+    });
+
+    it('should match the email filter as a partial', async () => {
+      repository.findManyWithPagination.mockResolvedValue(pagination as never);
+
+      await service.findManyWithPagination({
+        per_page: 10,
+        sort: 'created_at',
+        email: '@acme.com',
+      });
+
+      expect(repository.findManyWithPagination).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { email: { contains: '@acme.com' } },
+        }),
+      );
+    });
+
+    it('should combine the role and email filters', async () => {
+      repository.findManyWithPagination.mockResolvedValue(pagination as never);
+
+      await service.findManyWithPagination({
+        per_page: 10,
+        sort: 'created_at',
+        role: ['USER'],
+        email: '@acme.com',
+      });
+
+      expect(repository.findManyWithPagination).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            role: { in: ['USER'] },
+            email: { contains: '@acme.com' },
+          },
+        }),
+      );
+    });
+
+    it('should raise 422 when the repository yields nothing', async () => {
+      repository.findManyWithPagination.mockResolvedValue(undefined);
+
+      await expect(
+        service.findManyWithPagination({ per_page: 10, sort: 'created_at' }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+  });
+
   describe('createOne', () => {
     const params = {
       username: 'admin',
       password: 'plain',
       email: 'a@b.com',
+      role: 'ADMIN' as const,
     };
 
     it('should hash the password and call repository.createOne with the hashed value', async () => {
@@ -85,10 +189,21 @@ describe('AccountService', () => {
       expect(repository.createOne).toHaveBeenCalledWith({
         username: params.username,
         email: params.email,
+        role: params.role,
         password: 'hash',
         created_at: expect.any(Date),
       });
       expect(result).toEqual({ id: uuid });
+    });
+
+    it('should never hand the plain password to the repository', async () => {
+      hashSyncMock.mockReturnValue('hash');
+      repository.createOne.mockResolvedValue({ id: uuid });
+
+      await service.createOne(params);
+
+      const [call] = repository.createOne.mock.calls;
+      expect(call[0].password).not.toBe(params.password);
     });
 
     it('should throw UnauthorizedException when repository returns nothing', async () => {
@@ -103,16 +218,16 @@ describe('AccountService', () => {
 
   describe('updatePassword', () => {
     const params = {
-      loginId: uuid,
-      currentPassword: 'old',
-      newPassword: 'new',
+      login_id: uuid,
+      current_password: 'old',
+      new_password: 'new',
     };
 
     it('should validate current password, hash new one, persist it and clear auth cache', async () => {
       repository.findOneById.mockResolvedValue({
         id: uuid,
         password: 'old-hash',
-      });
+      } as never);
       compareSyncMock.mockReturnValue(true);
       hashSyncMock.mockReturnValue('new-hash');
       repository.updatePasswordById.mockResolvedValue({ id: uuid });
@@ -123,8 +238,8 @@ describe('AccountService', () => {
       expect(compareSyncMock).toHaveBeenCalledWith('old', 'old-hash');
       expect(hashSyncMock).toHaveBeenCalledWith('new', 10);
       expect(repository.updatePasswordById).toHaveBeenCalledWith({
-        loginId: uuid,
-        passwordHash: 'new-hash',
+        login_id: uuid,
+        password_hash: 'new-hash',
       });
       expect(cache.deleteCollection).toHaveBeenCalledWith('auth:*');
       expect(result).toEqual({ id: uuid });
@@ -144,7 +259,8 @@ describe('AccountService', () => {
       repository.findOneById.mockResolvedValue({
         id: uuid,
         password: 'old-hash',
-      });
+      } as never);
+      compareSyncMock.mockReturnValue(false);
 
       await expect(service.updatePassword(params)).rejects.toBeInstanceOf(
         UnauthorizedException,
@@ -157,7 +273,7 @@ describe('AccountService', () => {
       repository.findOneById.mockResolvedValue({
         id: uuid,
         password: 'old-hash',
-      });
+      } as never);
       compareSyncMock.mockReturnValue(true);
       hashSyncMock.mockReturnValue('new-hash');
       repository.updatePasswordById.mockResolvedValue(undefined);
@@ -179,32 +295,32 @@ describe('AccountService', () => {
       const result = await service.validateLogin(params);
 
       expect(cache.get).toHaveBeenCalledWith({ key: 'auth', item: 'admin' });
-      expect(repository.findOneByAccountnameOrEmail).not.toHaveBeenCalled();
+      expect(repository.findOneByUsernameOrEmail).not.toHaveBeenCalled();
       expect(result).toBe(cached);
     });
 
     it('should query the repository, store the result in cache and return it on cache miss', async () => {
       cache.get.mockResolvedValue(undefined);
       const repoResult = { id: uuid, password: 'hash' };
-      repository.findOneByAccountnameOrEmail.mockResolvedValue(repoResult);
+      repository.findOneByUsernameOrEmail.mockResolvedValue(
+        repoResult as never,
+      );
 
       const result = await service.validateLogin(params);
 
-      expect(repository.findOneByAccountnameOrEmail).toHaveBeenCalledWith(
-        params,
-      );
+      expect(repository.findOneByUsernameOrEmail).toHaveBeenCalledWith(params);
       expect(cache.set).toHaveBeenCalledWith({
         key: 'auth',
         item: 'admin',
         data: repoResult,
-        ttl: DEFAULT_TTL.five,
+        ttl: CACHE_TTL.five,
       });
       expect(result).toBe(repoResult);
     });
 
     it('should throw UnauthorizedException when the repository finds nothing', async () => {
       cache.get.mockResolvedValue(undefined);
-      repository.findOneByAccountnameOrEmail.mockResolvedValue(undefined);
+      repository.findOneByUsernameOrEmail.mockResolvedValue(undefined);
 
       await expect(service.validateLogin(params)).rejects.toBeInstanceOf(
         UnauthorizedException,
@@ -224,6 +340,17 @@ describe('AccountService', () => {
 
       expect(compareSyncMock).toHaveBeenCalledWith('plain', 'hash');
       expect(result).toBe(true);
+    });
+
+    it('should report a mismatch as false', () => {
+      compareSyncMock.mockReturnValue(false);
+
+      expect(
+        service.validatePassword({
+          userPassword: 'wrong',
+          hashPassword: 'hash',
+        }),
+      ).toBe(false);
     });
   });
 });

@@ -1,13 +1,12 @@
-import { LoggerService } from '@app/logger';
-import { UserService } from '@app/user';
-import { UnauthorizedException } from '@nestjs/common';
+import { AccountService } from '@app/account';
+import { Logger, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthStrategyLocal } from './local.strategy';
 
 describe('AuthStrategyLocal', () => {
   let strategy: AuthStrategyLocal;
-  let userService: jest.Mocked<UserService>;
-  let logger: jest.Mocked<LoggerService>;
+  let accountService: jest.Mocked<AccountService>;
+  let warn: jest.SpyInstance;
 
   const username = 'admin';
   const password = 'plain-pass';
@@ -15,26 +14,27 @@ describe('AuthStrategyLocal', () => {
   const loginId = '019538c4-2f7a-7c31-9c1b-000000000001';
 
   beforeEach(async () => {
+    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthStrategyLocal,
         {
-          provide: UserService,
+          provide: AccountService,
           useValue: {
             validateLogin: jest.fn(),
             validatePassword: jest.fn(),
           },
         },
-        {
-          provide: LoggerService,
-          useValue: { warn: jest.fn() },
-        },
       ],
     }).compile();
 
     strategy = module.get(AuthStrategyLocal);
-    userService = module.get(UserService);
-    logger = module.get(LoggerService);
+    accountService = module.get(AccountService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -42,60 +42,86 @@ describe('AuthStrategyLocal', () => {
   });
 
   describe('validate', () => {
-    it('should return the authenticated user when credentials are valid', async () => {
-      userService.validateLogin.mockResolvedValue({
+    it('should return the authenticated account when credentials are valid', async () => {
+      accountService.validateLogin.mockResolvedValue({
         id: loginId,
         password: hashedPassword,
+        role: 'ADMIN',
       });
-      userService.validatePassword.mockReturnValue(true);
+      accountService.validatePassword.mockReturnValue(true);
 
       const result = await strategy.validate(username, password);
 
-      expect(userService.validateLogin).toHaveBeenCalledWith({ username });
-      expect(userService.validatePassword).toHaveBeenCalledWith({
+      expect(accountService.validateLogin).toHaveBeenCalledWith({ username });
+      expect(accountService.validatePassword).toHaveBeenCalledWith({
         userPassword: password,
         hashPassword: hashedPassword,
       });
-      expect(result).toEqual({ username, loginId });
-      expect(logger.warn).not.toHaveBeenCalled();
+      expect(result).toEqual({ username, id: loginId, role: 'ADMIN' });
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('should carry an account with no role through untouched', async () => {
+      accountService.validateLogin.mockResolvedValue({
+        id: loginId,
+        password: hashedPassword,
+      });
+      accountService.validatePassword.mockReturnValue(true);
+
+      const result = await strategy.validate(username, password);
+
+      expect(result).toEqual({ username, id: loginId, role: undefined });
+    });
+
+    it('should never expose the password hash on the authenticated account', async () => {
+      accountService.validateLogin.mockResolvedValue({
+        id: loginId,
+        password: hashedPassword,
+        role: 'USER',
+      });
+      accountService.validatePassword.mockReturnValue(true);
+
+      const result = await strategy.validate(username, password);
+
+      expect(result).not.toHaveProperty('password');
     });
 
     it('should throw UnauthorizedException when username is missing', async () => {
       await expect(strategy.validate('', password)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
-      expect(userService.validateLogin).not.toHaveBeenCalled();
+      expect(accountService.validateLogin).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException when password is missing', async () => {
       await expect(strategy.validate(username, '')).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
-      expect(userService.validateLogin).not.toHaveBeenCalled();
+      expect(accountService.validateLogin).not.toHaveBeenCalled();
     });
 
-    it('should log a warning and throw UnauthorizedException when password does not match', async () => {
-      userService.validateLogin.mockResolvedValue({
+    it('should log a warning and throw UnauthorizedException when the password does not match', async () => {
+      accountService.validateLogin.mockResolvedValue({
         id: loginId,
         password: hashedPassword,
+        role: 'USER',
       });
-      userService.validatePassword.mockReturnValue(false);
+      accountService.validatePassword.mockReturnValue(false);
 
       await expect(
         strategy.validate(username, password),
       ).rejects.toBeInstanceOf(UnauthorizedException);
-      expect(logger.warn).toHaveBeenCalledWith(
+      expect(warn).toHaveBeenCalledWith(
         `[AUTH] - USERNAME:${username} | INVALID DATA`,
-        AuthStrategyLocal.name,
       );
     });
 
-    it('should propagate errors thrown by userService.validateLogin', async () => {
+    it('should propagate errors thrown by accountService.validateLogin', async () => {
       const error = new UnauthorizedException();
-      userService.validateLogin.mockRejectedValue(error);
+      accountService.validateLogin.mockRejectedValue(error);
 
       await expect(strategy.validate(username, password)).rejects.toBe(error);
-      expect(userService.validatePassword).not.toHaveBeenCalled();
+      expect(accountService.validatePassword).not.toHaveBeenCalled();
     });
   });
 });

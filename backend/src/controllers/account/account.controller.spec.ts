@@ -1,4 +1,5 @@
 import type {
+  IAccountCreatePromise,
   IAccountAreaItemListPromise,
   IAccountMessageListWithPaginationPromise,
   IAccountTicketListWithPaginationPromise,
@@ -12,13 +13,10 @@ import {
   IAccountIdParamDTO,
   IAccountMessagesListQueryDTO,
   IAccountTicketsListQueryDTO,
-  IAuthCreateDTO,
+  IAccountCreateDTO,
   IAuthPutPasswordDTO,
 } from './account.dto';
-import {
-  IAuthLoginCreatePromise,
-  IAuthLoginPromise,
-} from './account.interface';
+import { IAuthLoginPromise } from './account.interface';
 import { AccountControllerService } from './account.service';
 
 describe('AccountController', () => {
@@ -70,7 +68,7 @@ describe('AccountController', () => {
       const result = await controller.login(user, ip);
 
       expect(controllerService.login).toHaveBeenCalledTimes(1);
-      expect(controllerService.login).toHaveBeenCalledWith({ user, ip });
+      expect(controllerService.login).toHaveBeenCalledWith(user, ip);
 
       expect(result).toEqual(expected);
     });
@@ -80,19 +78,20 @@ describe('AccountController', () => {
       controllerService.login.mockRejectedValue(error);
 
       await expect(controller.login(user, ip)).rejects.toBe(error);
-      expect(controllerService.login).toHaveBeenCalledWith({ user, ip });
+      expect(controllerService.login).toHaveBeenCalledWith(user, ip);
     });
   });
 
   describe('register', () => {
-    const body: IAuthCreateDTO = {
+    const body: IAccountCreateDTO = {
       username: 'johndoe',
       password: 'NewPass_1',
       email: 'john@doe.com',
+      role: 'USER',
     };
 
     it('should return the uuid of new registered user by controllerService.createOne', async () => {
-      const expected: IAuthLoginCreatePromise = {
+      const expected: IAccountCreatePromise = {
         id: '019538c4-2f7a-7c31-9c1b-000000000099',
       };
       controllerService.createOne.mockResolvedValue(expected);
@@ -103,7 +102,7 @@ describe('AccountController', () => {
       expect(controllerService.createOne).toHaveBeenCalledWith({
         body,
         ip,
-        user,
+        account: user,
       });
       expect(result).toBe(expected);
     });
@@ -116,7 +115,7 @@ describe('AccountController', () => {
       expect(controllerService.createOne).toHaveBeenCalledWith({
         body,
         ip,
-        user,
+        account: user,
       });
     });
   });
@@ -136,7 +135,7 @@ describe('AccountController', () => {
       expect(controllerService.update).toHaveBeenCalledWith({
         body,
         ip,
-        user,
+        account: user,
       });
       expect(result).toBeUndefined();
     });
@@ -149,7 +148,7 @@ describe('AccountController', () => {
       expect(controllerService.update).toHaveBeenCalledWith({
         body,
         ip,
-        user,
+        account: user,
       });
     });
   });
