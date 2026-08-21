@@ -8,7 +8,9 @@ describe('TicketMessagesRepository', () => {
     ticket_messages: {
       count: jest.Mock;
       findMany: jest.Mock;
+      create: jest.Mock;
     };
+    tickets: { update: jest.Mock };
     $transaction: jest.Mock;
     errorHandler: jest.Mock;
   };
@@ -18,7 +20,9 @@ describe('TicketMessagesRepository', () => {
       ticket_messages: {
         count: jest.fn(),
         findMany: jest.fn(),
+        create: jest.fn(),
       },
+      tickets: { update: jest.fn() },
       $transaction: jest.fn((cb) => cb(database)),
       errorHandler: jest.fn(),
     };
@@ -145,6 +149,91 @@ describe('TicketMessagesRepository', () => {
       const result = await repository.findManyByTicketId({
         ticket_id: ticketId,
       });
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('createOne', () => {
+    const ticketId = '019538c4-2f7a-7c31-9c1b-000000000001';
+    const loginId = '019538c4-2f7a-7c31-9c1b-000000000002';
+    const createdAt = new Date('2026-08-20T12:00:00.000Z');
+
+    const params = {
+      ticket_id: ticketId,
+      login_id: loginId,
+      message: 'the printer is still down',
+      created_at: createdAt,
+    };
+
+    it('should insert the message and stamp the ticket inside a single transaction', async () => {
+      database.ticket_messages.create.mockResolvedValue({ id: 'message-id' });
+      database.tickets.update.mockResolvedValue({ id: ticketId });
+
+      const result = await repository.createOne(params);
+
+      expect(database.$transaction).toHaveBeenCalledTimes(1);
+      expect(database.ticket_messages.create).toHaveBeenCalledWith({
+        data: {
+          ticket_id: ticketId,
+          login_id: loginId,
+          message: params.message,
+          created_at: createdAt,
+        },
+        select: { id: true },
+      });
+      expect(result).toEqual({ id: 'message-id' });
+    });
+
+    it('should write the next state on the ticket when one is given', async () => {
+      database.ticket_messages.create.mockResolvedValue({ id: 'message-id' });
+      database.tickets.update.mockResolvedValue({ id: ticketId });
+
+      await repository.createOne({ ...params, state: 'WAITING_FEEDBACK' });
+
+      expect(database.tickets.update).toHaveBeenCalledWith({
+        where: { id: ticketId },
+        data: { updated_at: createdAt, state: 'WAITING_FEEDBACK' },
+        select: { id: true },
+      });
+    });
+
+    it('should stamp updated_at without touching state when no next state is given', async () => {
+      database.ticket_messages.create.mockResolvedValue({ id: 'message-id' });
+      database.tickets.update.mockResolvedValue({ id: ticketId });
+
+      await repository.createOne(params);
+
+      expect(database.tickets.update).toHaveBeenCalledWith({
+        where: { id: ticketId },
+        data: { updated_at: createdAt },
+        select: { id: true },
+      });
+    });
+
+    it('should stamp the ticket with the same instant carried by the message', async () => {
+      database.ticket_messages.create.mockResolvedValue({ id: 'message-id' });
+      database.tickets.update.mockResolvedValue({ id: ticketId });
+
+      await repository.createOne(params);
+
+      const messageArgs = database.ticket_messages.create.mock.calls[0][0] as {
+        data: { created_at: Date };
+      };
+      const ticketArgs = database.tickets.update.mock.calls[0][0] as {
+        data: { updated_at: Date };
+      };
+
+      expect(ticketArgs.data.updated_at).toBe(messageArgs.data.created_at);
+    });
+
+    it('should delegate errors to errorHandler and return undefined when the handler swallows', async () => {
+      const error = new Error('prisma');
+      database.$transaction.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.createOne(params);
 
       expect(database.errorHandler).toHaveBeenCalledWith(error);
       expect(result).toBeUndefined();

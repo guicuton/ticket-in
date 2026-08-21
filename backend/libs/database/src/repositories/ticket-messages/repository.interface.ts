@@ -1,3 +1,5 @@
+import { TICKET_STATES } from '../tickets/repository.interface';
+
 export interface ITicketMessagesFindManyWithPaginationParams<Args> {
   where: Args;
   offset?: number;
@@ -20,4 +22,16 @@ export interface ITicketMessageItemPromise {
     id: string;
     username: string;
   };
+}
+
+export interface ITicketMessagesCreateOneParams {
+  ticket_id: string;
+  login_id: string;
+  message: string;
+  created_at: Date;
+  state?: keyof typeof TICKET_STATES;
+}
+
+export interface ITicketMessagesCreateOnePromise {
+  id: string;
 }
