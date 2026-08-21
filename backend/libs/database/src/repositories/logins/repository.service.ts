@@ -33,7 +33,14 @@ export class LoginsRepository {
       orderBy: sort.column,
       orderDirection: sort.direction,
       where: prismaParams.where,
-      include: {
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        is_deleted: true,
+        created_at: true,
+        updated_at: true,
         _count: {
           select: {
             assigned_areas: true,

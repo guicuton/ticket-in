@@ -10,8 +10,11 @@ describe('LoginsRepository', () => {
       create: jest.Mock;
       findUnique: jest.Mock;
       findFirst: jest.Mock;
+      findMany: jest.Mock;
+      count: jest.Mock;
       update: jest.Mock;
     };
+    $transaction: jest.Mock;
     errorHandler: jest.Mock;
   };
 
@@ -23,8 +26,11 @@ describe('LoginsRepository', () => {
         create: jest.fn(),
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
         update: jest.fn(),
       },
+      $transaction: jest.fn((cb) => cb(database)),
       errorHandler: jest.fn(),
     };
 
@@ -123,6 +129,107 @@ describe('LoginsRepository', () => {
         select: { id: true },
       });
       expect(result).toBe(expected);
+    });
+  });
+
+  describe('findManyWithPagination', () => {
+    const params = {
+      where: {},
+      per_page: 10,
+      sort: { column: 'created_at', direction: 'desc' as const },
+    };
+
+    const safeColumns = [
+      'id',
+      'username',
+      'email',
+      'role',
+      'is_deleted',
+      'created_at',
+      'updated_at',
+    ];
+
+    const selectOf = () =>
+      (
+        database.logins.findMany.mock.calls[0][0] as {
+          select: Record<string, unknown>;
+        }
+      ).select;
+
+    beforeEach(() => {
+      database.logins.count.mockResolvedValue(1);
+      database.logins.findMany.mockResolvedValue([{ id: loginId }]);
+    });
+
+    it('should never select the password column', async () => {
+      await repository.findManyWithPagination(params);
+
+      expect(selectOf()).not.toHaveProperty('password');
+    });
+
+    it('should pin the projection to an allow list, so a new column is not exposed by default', async () => {
+      await repository.findManyWithPagination(params);
+
+      expect(Object.keys(selectOf()).sort()).toEqual(
+        [...safeColumns, '_count'].sort(),
+      );
+    });
+
+    it('should keep every safe column selected', async () => {
+      await repository.findManyWithPagination(params);
+
+      const select = selectOf();
+
+      safeColumns.forEach((column) => expect(select[column]).toBe(true));
+    });
+
+    it('should count the relations the list reports', async () => {
+      await repository.findManyWithPagination(params);
+
+      expect(selectOf()._count).toEqual({
+        select: {
+          assigned_areas: true,
+          tickets_messages: true,
+          tickets_requester: true,
+          tickets_responser: true,
+        },
+      });
+    });
+
+    it('should never pass include alongside select, which Prisma rejects', async () => {
+      await repository.findManyWithPagination(params);
+
+      expect(database.logins.findMany.mock.calls[0][0]).not.toHaveProperty(
+        'include',
+      );
+    });
+
+    it('should carry the where, paging and ordering through', async () => {
+      await repository.findManyWithPagination({
+        ...params,
+        offset: 20,
+        where: { role: { in: ['ADMIN'] } },
+      });
+
+      expect(database.logins.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 10,
+          skip: 20,
+          where: { role: { in: ['ADMIN'] } },
+          orderBy: { created_at: 'desc' },
+        }),
+      );
+    });
+
+    it('should delegate Prisma errors to errorHandler and return undefined when handler swallows', async () => {
+      const error = new Error('prisma');
+      database.logins.count.mockRejectedValue(error);
+      database.errorHandler.mockReturnValue(undefined);
+
+      const result = await repository.findManyWithPagination(params);
+
+      expect(database.errorHandler).toHaveBeenCalledWith(error);
+      expect(result).toBeUndefined();
     });
   });
 });

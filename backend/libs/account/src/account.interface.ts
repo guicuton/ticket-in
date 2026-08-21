@@ -40,7 +40,6 @@ export interface IAccountCreatePromise {
 export interface IAccountItemListPromise {
   id: string;
   username: string;
-  password: string;
   email: string;
   role: keyof typeof LOGIN_ROLES;
   is_deleted: boolean;
