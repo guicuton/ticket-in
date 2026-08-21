@@ -121,3 +121,15 @@ export interface ITicketUpdateParams {
 export interface ITicketUpdatePromise {
   id: string;
 }
+
+export interface ITicketCreateMessageParams {
+  ticket_id: string;
+  account: ITicketScopedAccount;
+  message: string;
+  state?: TICKET_STATE;
+}
+
+export interface ITicketCreateMessagePromise {
+  id: string;
+  state: TICKET_STATE;
+}

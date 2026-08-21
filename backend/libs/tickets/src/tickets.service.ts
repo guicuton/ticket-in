@@ -4,9 +4,11 @@ import {
   LOGIN_ROLES,
   LoginsRepository,
   TicketMessagesRepository,
+  TICKET_STATES,
   TicketsRepository,
 } from '@app/database';
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -14,7 +16,10 @@ import {
 import { CACHE_TTL } from '../../../configuration/constants';
 import { parseSort } from '../../../utils/parse-sort';
 import { Prisma } from '../../database/prisma/generated/client';
+import { TICKET_STATE } from '../../database/prisma/generated/enums';
 import {
+  ITicketCreateMessageParams,
+  ITicketCreateMessagePromise,
   ITicketCreateParams,
   ITicketCreatePromise,
   ITicketDetailPromise,
@@ -249,5 +254,52 @@ export class TicketsService {
       ...(requester_login_id && { requester_login_id }),
       ...(responser_login_id && { responser_login_id }),
     };
+  }
+
+  async createMessage(
+    params: ITicketCreateMessageParams,
+  ): Promise<ITicketCreateMessagePromise> {
+    const { ticket_id, account, message, state } = params;
+
+    const ticket = await this.findOneById({ ticket_id, account });
+
+    if (ticket.state === TICKET_STATES.RESOLVED)
+      throw new UnprocessableEntityException('ticket_resolved');
+
+    const nextState = this.resolveMessageState(ticket, account, state);
+
+    const repositoryResult = await this.ticketMessagesRepository.createOne({
+      ticket_id,
+      login_id: account.id,
+      message,
+      created_at: new Date(),
+      ...(nextState && { state: nextState }),
+    });
+
+    if (!repositoryResult)
+      throw new UnprocessableEntityException('repository_error');
+
+    await this.invalidateTicketCache(ticket_id);
+
+    return { id: repositoryResult.id, state: nextState ?? ticket.state };
+  }
+
+  private resolveMessageState(
+    ticket: ITicketDetailPromise,
+    account: ITicketScopedAccount,
+    state?: TICKET_STATE,
+  ): TICKET_STATE | undefined {
+    if (this.isPrivileged(account)) {
+      if (!state) throw new BadRequestException('state_required');
+
+      return state;
+    }
+
+    if (state) throw new BadRequestException('state_not_allowed');
+
+    if (ticket.state === TICKET_STATES.WAITING_FEEDBACK)
+      return TICKET_STATES.IN_PROGRESS;
+
+    return undefined;
   }
 }

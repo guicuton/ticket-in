@@ -6,6 +6,7 @@ import {
   TicketsRepository,
 } from '@app/database';
 import {
+  BadRequestException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -60,7 +61,7 @@ describe('TicketsService', () => {
         },
         {
           provide: TicketMessagesRepository,
-          useValue: { findManyByTicketId: jest.fn() },
+          useValue: { findManyByTicketId: jest.fn(), createOne: jest.fn() },
         },
         {
           provide: LoginsRepository,
@@ -487,6 +488,193 @@ describe('TicketsService', () => {
       await expect(
         service.updateOneById({ id: ticket_id, state: 'RESOLVED' }),
       ).rejects.toThrow(NotFoundException);
+      expect(cache.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createMessage', () => {
+    const master: ITicketScopedAccount = {
+      id: '019538c4-2f7a-7c31-9c1b-000000000006',
+      role: 'MASTER',
+    };
+    const message = 'the printer is still down';
+
+    const detailOn = (state: string, requester = user.id) => ({
+      id: ticket_id,
+      requester_login_id: requester,
+      state,
+    });
+
+    const created = { id: '019538c4-2f7a-7c31-9c1b-000000000007' };
+
+    it('should authorize through the ticket before writing anything', async () => {
+      cache.get.mockResolvedValue(
+        detailOn('NEW', other_login_id) as never,
+      );
+
+      await expect(
+        service.createMessage({ ticket_id, account: user, message }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(ticketMessagesRepository.createOne).not.toHaveBeenCalled();
+      expect(cache.delete).not.toHaveBeenCalled();
+    });
+
+    it('should raise 422 ticket_resolved and write nothing on a resolved ticket', async () => {
+      cache.get.mockResolvedValue(detailOn('RESOLVED') as never);
+
+      await expect(
+        service.createMessage({ ticket_id, account: user, message }),
+      ).rejects.toThrow(UnprocessableEntityException);
+
+      expect(ticketMessagesRepository.createOne).not.toHaveBeenCalled();
+    });
+
+    it('should close the resolved ticket to privileged accounts too', async () => {
+      cache.get.mockResolvedValue(detailOn('RESOLVED') as never);
+
+      await expect(
+        service.createMessage({
+          ticket_id,
+          account: admin,
+          message,
+          state: 'IN_PROGRESS',
+        }),
+      ).rejects.toThrow(UnprocessableEntityException);
+
+      expect(ticketMessagesRepository.createOne).not.toHaveBeenCalled();
+    });
+
+    it('should write the state an ADMIN chooses', async () => {
+      cache.get.mockResolvedValue(detailOn('NEW') as never);
+      ticketMessagesRepository.createOne.mockResolvedValue(created as never);
+
+      const result = await service.createMessage({
+        ticket_id,
+        account: admin,
+        message,
+        state: 'ESCALATED',
+      });
+
+      expect(ticketMessagesRepository.createOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ticket_id,
+          login_id: admin.id,
+          message,
+          state: 'ESCALATED',
+        }),
+      );
+      expect(result).toEqual({ id: created.id, state: 'ESCALATED' });
+    });
+
+    it('should write the state a MASTER chooses', async () => {
+      cache.get.mockResolvedValue(detailOn('NEW') as never);
+      ticketMessagesRepository.createOne.mockResolvedValue(created as never);
+
+      const result = await service.createMessage({
+        ticket_id,
+        account: master,
+        message,
+        state: 'RESOLVED',
+      });
+
+      expect(ticketMessagesRepository.createOne).toHaveBeenCalledWith(
+        expect.objectContaining({ state: 'RESOLVED', login_id: master.id }),
+      );
+      expect(result.state).toBe('RESOLVED');
+    });
+
+    it('should raise 400 state_required when a privileged account omits the state', async () => {
+      cache.get.mockResolvedValue(detailOn('NEW') as never);
+
+      await expect(
+        service.createMessage({ ticket_id, account: admin, message }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(ticketMessagesRepository.createOne).not.toHaveBeenCalled();
+    });
+
+    it('should raise 400 state_not_allowed when a USER sends a state', async () => {
+      cache.get.mockResolvedValue(detailOn('NEW') as never);
+
+      await expect(
+        service.createMessage({
+          ticket_id,
+          account: user,
+          message,
+          state: 'RESOLVED',
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(ticketMessagesRepository.createOne).not.toHaveBeenCalled();
+    });
+
+    it('should move a USER message on WAITING_FEEDBACK to IN_PROGRESS', async () => {
+      cache.get.mockResolvedValue(detailOn('WAITING_FEEDBACK') as never);
+      ticketMessagesRepository.createOne.mockResolvedValue(created as never);
+
+      const result = await service.createMessage({
+        ticket_id,
+        account: user,
+        message,
+      });
+
+      expect(ticketMessagesRepository.createOne).toHaveBeenCalledWith(
+        expect.objectContaining({ state: 'IN_PROGRESS', login_id: user.id }),
+      );
+      expect(result).toEqual({ id: created.id, state: 'IN_PROGRESS' });
+    });
+
+    it.each(['NEW', 'IN_PROGRESS', 'ESCALATED'])(
+      'should leave the state untouched for a USER message on %s',
+      async (state) => {
+        cache.get.mockResolvedValue(detailOn(state) as never);
+        ticketMessagesRepository.createOne.mockResolvedValue(created as never);
+
+        const result = await service.createMessage({
+          ticket_id,
+          account: user,
+          message,
+        });
+
+        const args = ticketMessagesRepository.createOne.mock.calls[0][0];
+
+        expect(args.state).toBeUndefined();
+        expect(result).toEqual({ id: created.id, state });
+      },
+    );
+
+    it('should stamp the message with a creation instant', async () => {
+      cache.get.mockResolvedValue(detailOn('NEW') as never);
+      ticketMessagesRepository.createOne.mockResolvedValue(created as never);
+
+      await service.createMessage({ ticket_id, account: user, message });
+
+      const args = ticketMessagesRepository.createOne.mock.calls[0][0];
+
+      expect(args.created_at).toBeInstanceOf(Date);
+    });
+
+    it('should drop both cache entries for the ticket after writing', async () => {
+      cache.get.mockResolvedValue(detailOn('NEW') as never);
+      ticketMessagesRepository.createOne.mockResolvedValue(created as never);
+
+      await service.createMessage({ ticket_id, account: user, message });
+
+      expect(cache.delete).toHaveBeenCalledWith([
+        `tickets:detail:${ticket_id}`,
+        `tickets:messages:${ticket_id}`,
+      ]);
+    });
+
+    it('should raise 422 repository_error and skip invalidation when the write yields nothing', async () => {
+      cache.get.mockResolvedValue(detailOn('NEW') as never);
+      ticketMessagesRepository.createOne.mockResolvedValue(undefined as never);
+
+      await expect(
+        service.createMessage({ ticket_id, account: user, message }),
+      ).rejects.toThrow(UnprocessableEntityException);
+
       expect(cache.delete).not.toHaveBeenCalled();
     });
   });
