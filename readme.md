@@ -106,7 +106,7 @@ Além disso, consultas de maior peso como listas estão com dados paginados ou c
 
 ## FRONTEND
 
-[x] Gestão de usuários
+[ x ] Gestão de usuários
 [] Componentes de gestão de ticket
 [] Componentes de gestão de áreas
 
