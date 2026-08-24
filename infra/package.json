@@ -1,0 +1,7 @@
+{
+  "name": "infra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Arquivos de configuracao de infraestrutura (nginx, pm2)",
+  "license": "UNLICENSED"
+}
