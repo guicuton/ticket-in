@@ -97,9 +97,9 @@ Além disso, consultas de maior peso como listas estão com dados paginados ou c
 
 ## BACKEND
 
-- [] Sse para atualização de dados one-way conforme demanda
-- [] Implementação mensageria para comunicação externa para alertas
-- [] Observabilidade via Prometheus+Grafana
+- [ ] Sse para atualização de dados one-way conforme demanda
+- [ ] Implementação mensageria para comunicação externa para alertas
+- [ ] Observabilidade via Prometheus+Grafana
 - [x] CRUD módulo de accounts
 - [x] CRUD módulo de área
 - [x] CRUD módulo de tickets
@@ -107,8 +107,8 @@ Além disso, consultas de maior peso como listas estão com dados paginados ou c
 ## FRONTEND
 
 - [x] Gestão de usuários
-- [] Componentes de gestão de ticket
-- [] Componentes de gestão de áreas
+- [ ] Componentes de gestão de ticket
+- [ ] Componentes de gestão de áreas
 
 ## JWT
 
