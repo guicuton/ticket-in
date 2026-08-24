@@ -76,3 +76,13 @@ ENV APP_PORT=3000
 EXPOSE 3000
 
 CMD ["pm2-runtime", "start", "infra/pm2/ecosystem.config.js"]
+
+#############################################
+# frontend - SPA servida por nginx          #
+#############################################
+FROM nginx:1.27-alpine AS frontend
+
+COPY --from=build /app/frontend/dist/browser /usr/share/nginx/html
+COPY infra/nginx/default.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
