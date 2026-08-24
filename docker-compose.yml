@@ -86,39 +86,35 @@ services:
     sysctls:
       - net.core.somaxconn=65535
 
-  # migration:
-  #   container_name: ticketin_migration
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #     target: prod
-  #   env_file:
-  #     - configurations/envs/.env.prod
-  #   command: ["npm", "run", "migration:deploy:prod"]
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   environment:
-  #     NODE_ENV: prod
-  #   networks:
-  #     - ticketin
+  migration:
+    container_name: ticketin_migration
+    build:
+      context: .
+      target: prod
+    command: ["npm", "run", "migration:create"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: prod
+    networks:
+      - ticketin
   
-  # seed:
-  #   container_name: ticketin_seed
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #     target: prod
-  #   env_file:
-  #     - configurations/envs/.env.prod
-  #   command: ["npm", "run", "migration:seed:prod"]
-  #   depends_on:
-  #     migration:
-  #       condition: service_completed_successfully
-  #   environment:
-  #     NODE_ENV: prod
-  #   networks:
-  #     - ticketin
+  seed:
+    container_name: ticketin_seed
+    build:
+      context: .
+      target: prod
+    env_file:
+      - ./.env
+    command: ["npm", "run", "migration:seed"]
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: prod
+    networks:
+      - ticketin
 
   # backend:
   #   container_name: ticketin_backend

@@ -16,14 +16,16 @@
 		"msgpackr-extract@3.0.4": true,
 		"unrs-resolver@1.12.2": true,
 		"@prisma/engines@7.9.1": true,
-		"prisma@7.9.1": true
+		"prisma@7.9.1": true,
+		"@scarf/scarf@1.4.0": true,
+		"bcrypt@6.0.0": true
 	},
 	"scripts": {
 		"start:dev": "concurrently -c blue,green \"npm run start:dev:*\"",
 		"start:dev:backend": "npm run start:dev --workspace=backend",
 		"start:dev:frontend": "npm run start --workspace=frontend",
 		"migration:seed": "prisma db seed --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts",
-		"migration:create": "prisma migrate dev --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts"
+		"migration:create": "prisma migrate prod --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts"
 	},
 	"prisma": {
 		"seed": "npm run migration:seed"

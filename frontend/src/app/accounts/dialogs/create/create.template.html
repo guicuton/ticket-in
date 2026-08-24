@@ -1,0 +1,47 @@
+<h2 mat-dialog-title>Criar usuário</h2>
+<mat-dialog-content>
+  <form [formGroup]="componentForm" (ngSubmit)="onFormSubmit()">
+    <fieldset>
+      <div class="d-flex flex-column gap-3">
+        <div class="form-group">
+          <label class="text-dark fw-semibold" for="account:create:username">Usuário:</label>
+          <input
+            id="account:create:username"
+            type="text"
+            class="form-control"
+            formControlName="username"
+          />
+        </div>
+        <div class="form-group">
+          <label class="text-dark fw-semibold" for="account:create:password">Senha:</label>
+          <input
+            id="account:create:password"
+            type="password"
+            class="form-control"
+            formControlName="password"
+          />
+        </div>
+        <div class="form-group">
+          <label class="text-dark fw-semibold" for="account:create:email">Email:</label>
+          <input
+            id="account:create:email"
+            type="email"
+            class="form-control"
+            formControlName="email"
+          />
+        </div>
+        <div class="form-group">
+          <label class="text-dark fw-semibold" for="account:create:role">Nível de acesso:</label>
+          <select class="form-control form-select" id="account:create:role" formControlName="role">
+            <option value="ADMIN">Administração</option>
+            <option value="MASTER">Master</option>
+            <option value="USER">Usuário</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <button class="btn btn-outline-dark">CRIAR USUÁRIO</button>
+        </div>
+      </div>
+    </fieldset>
+  </form>
+</mat-dialog-content>
