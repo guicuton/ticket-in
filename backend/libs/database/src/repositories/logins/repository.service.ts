@@ -14,6 +14,7 @@ import {
 import { offsetPaginator } from 'prisma-offset-paginator';
 import { PAGINATION_OPTIONS } from '../../../../../configuration/constants';
 import { TPaginationData } from 'prisma-offset-paginator/dist/interfaces';
+import { emptyPaginationData } from '../pagination';
 
 @Injectable()
 export class LoginsRepository {
@@ -22,37 +23,41 @@ export class LoginsRepository {
   async findManyWithPagination<Args>(
     params: ILoginsFindAllWithPaginationParams<Args>,
   ): Promise<TPaginationData | void> {
-    const { sort, ...prismaParams } = params;
+    try {
+      const { sort, ...prismaParams } = params;
 
-    const promise = await offsetPaginator({
-      instance: this.repository,
-      entity: 'logins',
-      offset: prismaParams.offset,
-      per_page: prismaParams.per_page,
-      bottom: PAGINATION_OPTIONS.aroundRange,
-      orderBy: sort.column,
-      orderDirection: sort.direction,
-      where: prismaParams.where,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        is_deleted: true,
-        created_at: true,
-        updated_at: true,
-        _count: {
-          select: {
-            assigned_areas: true,
-            tickets_messages: true,
-            tickets_requester: true,
-            tickets_responser: true,
+      const promise = await offsetPaginator({
+        instance: this.repository,
+        entity: 'logins',
+        offset: prismaParams.offset,
+        per_page: prismaParams.per_page,
+        bottom: PAGINATION_OPTIONS.aroundRange,
+        orderBy: sort.column,
+        orderDirection: sort.direction,
+        where: prismaParams.where,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          role: true,
+          is_deleted: true,
+          created_at: true,
+          updated_at: true,
+          _count: {
+            select: {
+              assigned_areas: true,
+              tickets_messages: true,
+              tickets_requester: true,
+              tickets_responser: true,
+            },
           },
         },
-      },
-    }).catch((err) => this.repository.errorHandler(err));
+      });
 
-    if (promise) return promise;
+      return promise ?? emptyPaginationData();
+    } catch (err) {
+      this.repository.errorHandler(err as Error);
+    }
   }
 
   async createOne(

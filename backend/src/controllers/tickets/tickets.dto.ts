@@ -275,9 +275,7 @@ export class ITicketMessageCreateDTO {
   state?: keyof typeof TICKET_STATES;
 }
 
-export class ITicketMessageCreateResponseDTO
-  implements ITicketCreateMessagePromise
-{
+export class ITicketMessageCreateResponseDTO implements ITicketCreateMessagePromise {
   @ApiProperty({ format: 'uuid' })
   id: string;
 

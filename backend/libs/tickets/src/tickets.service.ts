@@ -291,7 +291,6 @@ export class TicketsService {
   ): TICKET_STATE | undefined {
     if (this.isPrivileged(account)) {
       if (!state) throw new BadRequestException('state_required');
-
       return state;
     }
 

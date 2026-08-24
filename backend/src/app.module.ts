@@ -31,7 +31,7 @@ import { APP_GUARD } from '@nestjs/core';
         return {
           secret: cs.get<string>('JWT_SECRET'),
           signOptions: {
-            expiresIn: 60 * 5,
+            expiresIn: 60 * 60,
           },
         };
       },

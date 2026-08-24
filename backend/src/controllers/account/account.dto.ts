@@ -69,7 +69,7 @@ export class IAccountsListQueryDTO {
   ])
   sort: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'User email',
     example: 'test@test.com',
     type: 'string',
