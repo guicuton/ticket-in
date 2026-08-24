@@ -37,3 +37,42 @@ ENV POSTGRES_DATABASE_URL="postgres://build:build@127.0.0.1:5432/build"
 RUN npm run prisma:generate \
     && npm run build:backend \
     && npm run build:frontend
+
+#############################################
+# migrator - imagem de migrations e seed    #
+#############################################
+FROM build AS migrator
+
+WORKDIR /app
+
+CMD ["npm", "run", "migration:deploy"]
+
+#############################################
+# prod-deps - dependencias de producao      #
+#############################################
+FROM deps AS prod-deps
+
+WORKDIR /app
+
+# os manifests dos workspaces ja vieram do estagio deps
+RUN npm ci --omit=dev --workspace=backend --include-workspace-root
+
+#############################################
+# backend - runtime sob pm2                 #
+#############################################
+FROM node:24.19.0-alpine AS backend
+
+RUN npm install -g pm2
+
+WORKDIR /app
+
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/backend/dist ./backend/dist
+COPY infra/pm2/ecosystem.config.js ./infra/pm2/ecosystem.config.js
+
+ENV NODE_ENV=production
+ENV APP_PORT=3000
+
+EXPOSE 3000
+
+CMD ["pm2-runtime", "start", "infra/pm2/ecosystem.config.js"]
