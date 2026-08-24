@@ -37,7 +37,10 @@
 		"prisma:generate": "prisma generate --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts",
 		"migration:deploy": "prisma migrate deploy --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts",
 		"migration:create": "prisma migrate dev --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts",
-		"migration:seed": "prisma db seed --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts"
+		"migration:seed": "prisma db seed --schema=backend/libs/database/prisma/schema.prisma --config backend/libs/database/prisma.config.ts",
+		"test": "concurrently -c blue,green \"npm run test:*\"",
+		"test:backend": "npm run test --workspace=backend",
+		"test:frontend": "npm run test --workspace=frontend"
 	},
 	"devDependencies": {
 		"@types/bcrypt": "^6.0.0",
