@@ -15,7 +15,7 @@ hot reload.
 O repositório é um monorepo de workspaces npm com `backend` (NestJS) e `frontend`
 (Angular), compartilhando um único `package-lock.json` na raiz.
 
-Quatro pontos do estado atual bloqueiam o build e são corrigidos por este design:
+Cinco pontos do estado atual bloqueiam o build e são corrigidos por este design:
 
 1. `POSTGRES_DATABASE_URL` no `.env` usa interpolação (`@${POSTGRES_DB}`) que nem
    o `dotenv` nem o `env_file` do compose expandem, aponta o host para o nome do
@@ -29,6 +29,12 @@ Quatro pontos do estado atual bloqueiam o build e são corrigidos por este desig
 4. O `Dockerfile` presente na raiz pertence a outro projeto: referencia
    `/home/dashboard-nestjs`, um script `build:prod` inexistente e um caminho de
    schema Prisma que não corresponde a este repositório. Ele é substituído.
+5. `backend/.gitignore` ignora `/libs/database/prisma/generated`, então o Prisma
+   Client não é versionado e o build precisa rodar `prisma generate`. Esse
+   comando, porém, falha sem `POSTGRES_DATABASE_URL`, porque
+   `backend/libs/database/prisma.config.ts` usa `env('POSTGRES_DATABASE_URL')`,
+   que é resolvido no carregamento do config e não na conexão:
+   `PrismaConfigEnvError: Cannot resolve environment variable`.
 
 ## Arquitetura
 
@@ -41,7 +47,7 @@ workspaces vive lá.
 | Stage        | Base                   | Responsabilidade |
 |--------------|------------------------|------------------|
 | `deps`       | `node:24.19.0-alpine`  | Instala `npm@12.0.2` (o `allowScripts` da raiz é um recurso do npm 12) e o toolchain `python3 make g++`, necessário porque o `bcrypt` tem binding nativo e pode não ter prebuild para musl. Copia apenas os manifests e roda `npm ci`. |
-| `build`      | `deps`                 | Copia o código e roda `nest build` e `ng build`. |
+| `build`      | `deps`                 | Copia o código, roda `prisma generate` e depois `nest build` e `ng build`. Define `POSTGRES_DATABASE_URL` com um valor fictício apenas para o `generate` conseguir carregar o `prisma.config.ts`; nada conecta em banco nesse estágio e o valor não chega à imagem de runtime. |
 | `migrator`   | `build`                | Imagem usada pelos services `migration` e `seed`. Precisa das devDependencies porque o Prisma CLI e o `tsx` (usado pelo seed) vivem lá. |
 | `prod-deps`  | `deps`                 | `npm ci --omit=dev` para o workspace `backend` mais a raiz. Recompila o `bcrypt`, por isso herda de `deps` e não de uma base limpa. |
 | `backend`    | `node:24.19.0-alpine`  | Runtime. Recebe `node_modules` de `prod-deps`, `backend/dist` de `build`, `pm2` global e o ecosystem. |
@@ -137,7 +143,8 @@ services:down    → docker compose -f docker-compose.dev.yml down
 prod:up          → docker compose up --build -d
 prod:down        → docker compose down
 prod:logs        → docker compose logs -f
-build            → build:backend && build:frontend
+build            → prisma:generate && build:backend && build:frontend
+prisma:generate  → prisma generate
 migration:deploy → prisma migrate deploy (substitui o "migrate prod" quebrado)
 migration:create → prisma migrate dev (criação de novas migrations)
 ```
@@ -150,7 +157,10 @@ próprio de espera pelo Postgres.
 Novos:
 
 - `Dockerfile` — substitui integralmente o arquivo atual, que é de outro projeto.
-- `.dockerignore` — exclui `node_modules`, `dist`, `.angular`, `.git`, `coverage`, `.env`.
+- `.dockerignore` — exclui `node_modules`, `dist`, `.angular`, `.git`, `coverage`,
+  `.env` e `**/prisma/generated`. Excluir o client gerado é deliberado: obriga o
+  build a rodar `prisma generate` a partir do `schema.prisma`, o que torna a
+  imagem imune a um client desatualizado na máquina de quem builda.
 - `docker-compose.dev.yml`
 - `.env.example`
 - `infra/package.json` — pacote privado e vazio, apenas para satisfazer a entrada
@@ -192,6 +202,10 @@ Alterados:
 - O Prisma Client é gerado com o generator `prisma-client` e driver adapter
   `@prisma/adapter-pg`, portanto não depende de engine binário. Isso é premissa
   do design e é confirmado pelo passo 3 da verificação.
+- O `prisma.config.ts` resolve `env('POSTGRES_DATABASE_URL')` no carregamento, o
+  que torna toda invocação do Prisma CLI dependente dessa variável — inclusive
+  `generate`. O valor fictício do estágio de build cobre isso, mas qualquer
+  comando Prisma novo precisa da variável presente.
 
 ## Fora de escopo
 
