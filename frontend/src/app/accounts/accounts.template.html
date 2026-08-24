@@ -27,61 +27,67 @@
           </div>
         </form>
       </div>
-      <div class="d-block">
-        <div class="table-responsive">
-          <table class="table text-nowrap">
-            <thead>
-              <tr>
-                <th class="cursor-pointer" (click)="onClickSortColumn('username')">Usuário ±</th>
-                <th class="cursor-pointer" (click)="onClickSortColumn('role')">
-                  Nível de acesso ±
-                </th>
-                <th class="cursor-pointer" (click)="onClickSortColumn('created_at')">Datas ±</th>
-                <th>Áreas</th>
-                <th>Tickets</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody class="align-middle">
-              @for (item of itemsSignal()?.data; track item.id) {
+      @if (itemsSignal() && itemsSignal()!.data.length > 0) {
+        <div class="d-block">
+          <div class="table-responsive">
+            <table class="table text-nowrap">
+              <thead>
                 <tr>
-                  <td>
-                    <div class="d-flex gap-1">
-                      <span>{{ item.username }}</span>
-                      <span class="text-secondary">({{ item.email }})</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="badge px-3 py-2 text-bg-dark">{{ item.role }}</span>
-                  </td>
-                  <td>
-                    <div class="d-flex gap-1">
-                      <span>Atualizado:</span>
-                      <span class="text-secondary">{{
-                        item.updated_at | date: 'dd/MM/yyyy - HH:mm:ss'
-                      }}</span>
-                    </div>
-                    <div class="d-flex gap-1">
-                      <span>Criado:</span>
-                      <span class="text-secondary">{{
-                        item.created_at | date: 'dd/MM/yyyy - HH:mm:ss'
-                      }}</span>
-                    </div>
-                  </td>
-                  <td>{{ item._count.assigned_areas }}</td>
-                  <td>{{ item._count.tickets_requester + item._count.tickets_responser }}</td>
-                  <td>
-                    <button disabled class="btn btn-sm px-3 rounded-pill btn-outline-dark">
-                      Editar
-                    </button>
-                  </td>
+                  <th class="cursor-pointer" (click)="onClickSortColumn('username')">Usuário ±</th>
+                  <th class="cursor-pointer" (click)="onClickSortColumn('role')">
+                    Nível de acesso ±
+                  </th>
+                  <th class="cursor-pointer" (click)="onClickSortColumn('created_at')">Datas ±</th>
+                  <th>Áreas</th>
+                  <th>Tickets</th>
+                  <th></th>
                 </tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody class="align-middle">
+                @for (item of itemsSignal()?.data; track item.id) {
+                  <tr>
+                    <td>
+                      <div class="d-flex gap-1">
+                        <span>{{ item.username }}</span>
+                        <span class="text-secondary">({{ item.email }})</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge px-3 py-2 text-bg-dark">{{ item.role }}</span>
+                    </td>
+                    <td>
+                      <div class="d-flex gap-1">
+                        <span>Atualizado:</span>
+                        <span class="text-secondary">{{
+                          item.updated_at | date: 'dd/MM/yyyy - HH:mm:ss'
+                        }}</span>
+                      </div>
+                      <div class="d-flex gap-1">
+                        <span>Criado:</span>
+                        <span class="text-secondary">{{
+                          item.created_at | date: 'dd/MM/yyyy - HH:mm:ss'
+                        }}</span>
+                      </div>
+                    </td>
+                    <td>{{ item._count.assigned_areas }}</td>
+                    <td>{{ item._count.tickets_requester + item._count.tickets_responser }}</td>
+                    <td>
+                      <button disabled class="btn btn-sm px-3 rounded-pill btn-outline-dark">
+                        Editar
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-
+      } @else {
+        <div class="d-flex flex-column justify-content-center align-items-center p-3">
+          <h2 class="display-5">Sem dados</h2>
+          <p class="text-body">Clique em <b>Criar usuário</b> para começar</p>
+        </div>
+      }
       @if (itemsSignal() && (itemsSignal()?.meta.totalOfPages || 0) > 1) {
         <div class="d-block">
           <nav aria-label="Page navigation example">

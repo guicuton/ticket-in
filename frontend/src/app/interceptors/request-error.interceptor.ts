@@ -38,6 +38,9 @@ function getErrorMessage(error: HttpErrorResponse): string {
     case 422:
       return 'Dados inválidos.';
 
+    case 429:
+      return 'Aguardade alguns minutos e tente novamente';
+
     case 500:
       return 'Erro interno do servidor.';
 
