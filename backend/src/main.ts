@@ -25,26 +25,28 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Ticket In')
-    .setDescription('Tech Test API Docs')
-    .setVersion('1.0')
-    .addTag('Authentication', 'Authentication and password management')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        in: 'header',
-        description: 'JWT access token issued by POST /authentication',
-      },
-      'bearer',
-    )
-    .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, documentFactory, {
-    swaggerOptions: { persistAuthorization: true },
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Ticket In')
+      .setDescription('Tech Test API Docs')
+      .setVersion('1.0')
+      .addTag('Authentication', 'Authentication and password management')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          in: 'header',
+          description: 'JWT access token issued by POST /authentication',
+        },
+        'bearer',
+      )
+      .build();
+    const documentFactory = () => SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, documentFactory, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+  }
 
   app.enableShutdownHooks();
 
