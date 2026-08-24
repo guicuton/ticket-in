@@ -7,7 +7,7 @@
   </div>
   <div class="card-body">
     <div class="row gap-4">
-      <div class="d-flex flex-row justify-content-between">
+      <div class="d-flex flex-row flex-wrap gap-3 align-items-center justify-content-between">
         <button class="btn btn-outline-dark" (click)="onClickOpenCreateAccountDialog()">
           Criar usuário
         </button>
@@ -32,9 +32,11 @@
           <table class="table text-nowrap">
             <thead>
               <tr>
-                <th>Usuário</th>
-                <th>Nível de acesso</th>
-                <th>Datas</th>
+                <th class="cursor-pointer" (click)="onClickSortColumn('username')">Usuário ±</th>
+                <th class="cursor-pointer" (click)="onClickSortColumn('role')">
+                  Nível de acesso ±
+                </th>
+                <th class="cursor-pointer" (click)="onClickSortColumn('created_at')">Datas ±</th>
                 <th>Áreas</th>
                 <th>Tickets</th>
                 <th></th>
@@ -69,7 +71,9 @@
                   <td>{{ item._count.assigned_areas }}</td>
                   <td>{{ item._count.tickets_requester + item._count.tickets_responser }}</td>
                   <td>
-                    <button class="btn btn-sm px-3 rounded-pill btn-outline-dark">Editar</button>
+                    <button disabled class="btn btn-sm px-3 rounded-pill btn-outline-dark">
+                      Editar
+                    </button>
                   </td>
                 </tr>
               }

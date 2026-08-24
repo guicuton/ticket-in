@@ -31,7 +31,7 @@ export class IAccountsListQueryDTO {
 
   @ApiProperty({
     description: 'Items per page',
-    example: '10',
+    example: '5',
     type: 'number',
   })
   @IsIn(PAGINATION_OPTIONS.perPage)

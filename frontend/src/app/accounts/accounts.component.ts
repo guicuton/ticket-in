@@ -30,9 +30,11 @@ export class AccountsComponent {
   itemsSignal!: Signal<IPagination<IAccountItem> | undefined>;
   loadingStateSignal = this.componentService.isLoading;
 
+  sortReverse: boolean = true;
+  columnStateSignal = signal<string>('-created_at');
   paginationCursorSignal = signal<IAccountsListParams>({
     offset: 0,
-    per_page: 10,
+    per_page: 5,
     sort: '-created_at',
   });
 
@@ -91,5 +93,17 @@ export class AccountsComponent {
         }));
       }
     });
+  }
+
+  onClickSortColumn(column: string): void {
+    this.columnStateSignal.set(column);
+    this.sortReverse = !this.sortReverse;
+
+    column = this.sortReverse ? column.padStart(column.length + 1, '-') : column;
+
+    this.paginationCursorSignal.update((item) => ({
+      ...item,
+      sort: column,
+    }));
   }
 }

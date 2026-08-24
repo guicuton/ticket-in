@@ -10,6 +10,6 @@ export const CACHE_TTL = {
 
 export const PAGINATION_OPTIONS = {
   aroundRange: 4,
-  perPage: [10, 30, 100, 300, 1000],
+  perPage: [5, 10, 30, 100, 300, 1000],
   compare: ['lte', 'gte', 'lt', 'gt'],
 };

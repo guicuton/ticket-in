@@ -6,15 +6,16 @@ import { DatabaseModule } from '@app/database';
 import { TicketsModule } from '@app/tickets';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
+import { minutes, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { config } from '../configuration/configuration';
-import { AreasController } from './controllers/areas/areas.controller';
-import { AreasControllerService } from './controllers/areas/areas.service';
 import { AccountController } from './controllers/account/account.controller';
 import { AccountControllerService } from './controllers/account/account.service';
+import { AreasController } from './controllers/areas/areas.controller';
+import { AreasControllerService } from './controllers/areas/areas.service';
 import { TicketsController } from './controllers/tickets/tickets.controller';
 import { TicketsControllerService } from './controllers/tickets/tickets.service';
-import { JwtModule } from '@nestjs/jwt';
-import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -23,6 +24,12 @@ import { APP_GUARD } from '@nestjs/core';
       load: [config],
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([
+      {
+        limit: 10,
+        ttl: minutes(5),
+      },
+    ]),
     JwtModule.registerAsync({
       useFactory: (cs: ConfigService) => {
         const secret = cs.get<string>('JWT_SECRET');
@@ -50,6 +57,10 @@ import { APP_GUARD } from '@nestjs/core';
     AccountControllerService,
     AreasControllerService,
     TicketsControllerService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

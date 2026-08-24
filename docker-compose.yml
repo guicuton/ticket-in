@@ -9,7 +9,7 @@ volumes:
   redis_data:
 
 x-database-url: &database-url
-  POSTGRES_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@ticketin_postgres:5432/${POSTGRES_DB:-app}
+  POSTGRES_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@ticketin_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-app}
 
 services:
   postgres:
@@ -96,10 +96,10 @@ services:
     environment:
       <<: *database-url
       NODE_ENV: production
-      APP_PORT: 3000
+      APP_PORT: ${APP_PORT:-3000}
       PM2_INSTANCES: ${PM2_INSTANCES:-2}
       REDIS_HOST: ticketin_redis
-      REDIS_PORT: 6379
+      REDIS_PORT: ${REDIS_PASS:-6379}
       REDIS_PASS: ${REDIS_PASS:-12345}
       JWT_SECRET: ${JWT_SECRET:-ABC1234}
     depends_on:
@@ -117,7 +117,7 @@ services:
       context: .
       target: frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:${FRONTEND_PORT:-80}"
     depends_on:
       backend:
         condition: service_started
